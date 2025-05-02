@@ -1,0 +1,25 @@
+# Data configuration
+data:
+  # Base directory for data files
+  base_dir: "../data/"
+  
+  # Default column name in CSV files
+  column_name: "Adj Close"
+  
+  # Whether to add SPY to data by default
+  add_spy: true
+  
+  # Directory paths for different data types
+  directories:
+    ORDERS_DATA_DIR: "orders/"
+    LEARNER_DATA_DIR: "data/"
+    OUTPUT_DATA_DIR: "output/"
+
+# Visualization defaults
+visualization:
+  title: "Stock prices"
+  xlabel: "Date" 
+  ylabel: "Price"
+  fig_size: [10, 6]
+  font_size: 12
+  save_format: "png"

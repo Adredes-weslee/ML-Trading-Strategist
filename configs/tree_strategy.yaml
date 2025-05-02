@@ -1,0 +1,49 @@
+# Decision Tree Strategy configuration
+experiment:
+  name: "Decision Tree Strategy Analysis"
+  output_prefix: "dt_strategy"
+
+data:
+  symbol: "JPM"
+  training:
+    start_date: "2008-01-01"
+    end_date: "2009-12-31"
+  testing:
+    start_date: "2010-01-01"
+    end_date: "2011-12-31"
+
+portfolio:
+  starting_value: 100000
+
+dt_strategy:
+  # Technical indicator parameters
+  window_size: 20
+  rsi_window: 14
+  stoch_window: 14
+  cci_window: 20
+  buy_threshold: 0.02
+  sell_threshold: -0.02
+  position_size: 1000
+  prediction_days: 5
+  
+  # Momentum parameters
+  momentum_periods: [3, 5, 10]
+  
+  # Normalization factors
+  rsi_norm: 100.0
+  stoch_norm: 100.0
+  cci_norm: 200.0
+  
+  # Tree parameters
+  leaf_size: 5
+  bags: 20
+  boost: false
+
+trading:
+  commission: 9.95
+  impact: 0.005
+
+visualization:
+  compare_with_manual: true
+  plot_decision_tree: false
+  include_benchmark: true

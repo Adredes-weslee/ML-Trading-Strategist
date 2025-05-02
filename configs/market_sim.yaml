@@ -1,0 +1,21 @@
+# Market simulation configuration
+
+portfolio:
+  starting_value: 100000
+  # New parameters
+  max_positions: 1000
+  allow_short: true
+
+trading:
+  commission: 9.95
+  impact: 0.005
+  # New parameters
+  rebalance_frequency: "daily"  # Options: daily, weekly, monthly
+  slippage_model: "fixed"  # Options: fixed, proportional
+
+performance:
+  risk_free_rate: 0.0
+  sampling_frequency: 252.0
+  # New parameters
+  use_benchmark: true
+  benchmark_symbol: "SPY"

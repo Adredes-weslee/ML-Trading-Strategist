@@ -1,0 +1,71 @@
+# Manual Strategy Evaluation Configuration
+
+experiment:
+  name: "Manual Trading Strategy Evaluation"
+  description: "Rule-based technical indicator trading strategy vs benchmark"
+  output_prefix: "manual_strategy"
+
+data:
+  symbol: "JPM"
+  # In-sample and out-of-sample periods for backtesting
+  in_sample:
+    start_date: "2008-01-01"
+    end_date: "2009-12-31"
+  out_sample:
+    start_date: "2010-01-01"
+    end_date: "2011-12-31"
+
+portfolio:
+  starting_value: 100000
+  max_positions: 1000  # Position size for benchmark
+
+manual_strategy:
+  # Position sizing
+  position_size: 1000
+  
+  # Technical indicator windows
+  window_size: 20
+  rsi_window: 14
+  stoch_window: 14
+  cci_window: 20
+  
+  # Simplified signal threshold approach
+  # (values closer to 0.5 require more indicators to agree)
+  buy_threshold: 0.02   # Buy when sufficient indicators show buy signals
+  sell_threshold: -0.02  # Sell when sufficient indicators show sell signals
+  
+  # Advanced indicator thresholds - override defaults if needed
+  indicator_thresholds:
+    bollinger_upper: 1.0
+    bollinger_lower: -1.0
+    rsi_upper: 70
+    rsi_lower: 30
+    stoch_upper: 80
+    stoch_lower: 20
+    cci_upper: 100
+    cci_lower: -100
+    min_vote_buy: 3      # Explicit vote counts (alternative to buy_threshold)
+    min_vote_sell: 3     # Explicit vote counts (alternative to sell_threshold)
+
+trading:
+  commission: 9.95
+  impact: 0.005
+
+performance:
+  risk_free_rate: 0.0
+  sampling_frequency: 252.0
+
+visualization:
+  plot_indicators: true
+  annotate_trades: true
+  compare_returns: true
+  metrics_table: true
+  fig_size: [12, 8]
+  colors:
+    manual_strategy: "red"
+    benchmark: "purple"
+  trade_markers:
+    buy_color: "blue"
+    sell_color: "black"
+    line_style: "--"
+    alpha: 0.5

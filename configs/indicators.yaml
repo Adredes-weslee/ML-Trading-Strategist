@@ -1,0 +1,33 @@
+# Technical indicators configuration
+
+# Bollinger Bands
+bollinger:
+  window: 20
+  std_dev: 2.0
+  upper_threshold: 1.0
+  lower_threshold: -1.0
+
+# RSI
+rsi:
+  window: 14
+  upper_threshold: 70
+  lower_threshold: 30
+
+# MACD
+macd:
+  fast_period: 12
+  slow_period: 26
+  signal_period: 9
+
+# Stochastic Oscillator
+stochastic:
+  window: 14
+  upper_threshold: 80
+  lower_threshold: 20
+
+# CCI
+cci:
+  window: 20
+  constant: 0.015
+  upper_threshold: 100
+  lower_threshold: -100

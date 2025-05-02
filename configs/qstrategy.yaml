@@ -1,0 +1,51 @@
+# Q-Learning Strategy configuration
+experiment:
+  name: "Q-Learning Strategy Analysis"
+  output_prefix: "qstrategy"
+
+data:
+  symbol: "JPM"
+  training:
+    start_date: "2008-01-01"
+    end_date: "2009-12-31"
+  testing:
+    start_date: "2010-01-01"
+    end_date: "2011-12-31"
+
+portfolio:
+  starting_value: 100000
+
+q_strategy:
+  # Technical indicator parameters
+  indicator_bins: 10
+  window_size: 20
+  rsi_window: 14
+  position_size: 1000
+  max_iterations: 100
+  
+  # Indicator ranges
+  bb_range: [-2.0, 2.0]
+  rsi_range: [0.0, 1.0]
+  macd_range: [-1.0, 1.0]
+  rsi_norm: 100.0
+  
+  # Convergence parameters
+  min_iterations: 20
+  convergence_threshold: 0.1
+  
+  # Q-Learning parameters
+  learning_rate: 0.2
+  discount_factor: 0.9
+  random_action_rate: 0.5
+  random_action_decay: 0.99
+  dyna_iterations: 10
+
+trading:
+  commission: 9.95
+  impact: 0.005
+
+visualization:
+  compare_with_manual: true
+  compare_with_strategy_learner: true
+  plot_learning_curve: true
+  include_benchmark: true

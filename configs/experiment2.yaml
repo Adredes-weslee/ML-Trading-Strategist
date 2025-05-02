@@ -1,0 +1,56 @@
+# Transaction cost impact experiment
+
+experiment:
+  name: "Transaction Cost Impact"
+  description: "Analyze impact of transaction costs on strategy performance"
+  output_prefix: "impact_analysis"
+
+data:
+  symbol: "JPM"
+  in_sample:
+    start_date: "2008-01-01"
+    end_date: "2009-12-31"
+  out_sample:
+    start_date: "2010-01-01"
+    end_date: "2011-12-31"
+
+portfolio:
+  starting_value: 100000
+  max_positions: 1000  # Configurable position size for benchmark
+
+# Changed from strategy_learner to dt_strategy for consistency  
+dt_strategy:
+  window_size: 20
+  rsi_window: 14
+  stoch_window: 14
+  cci_window: 20
+  position_size: 1000
+  buy_threshold: 0.02
+  sell_threshold: -0.02
+  prediction_days: 5
+  leaf_size: 5
+  bags: 20
+  boost: false
+  
+trading:
+  commission: 9.95
+  # Multiple impact values for testing sensitivity
+  impacts: [0.0, 0.001, 0.005, 0.01, 0.02, 0.04]
+
+performance:
+  risk_free_rate: 0.0
+  sampling_frequency: 252.0
+
+visualization:
+  compare_returns: true
+  plot_impact_curve: true
+  metrics_table: true
+  fig_size: [12, 8]
+  
+  # Colors for different impact values
+  impact_colors: ["purple", "red", "blue", "green", "orange", "brown", "black"]
+  
+  # Trade count plot styling
+  marker: "o"
+  linestyle: "-"
+  trade_count_color: "blue"
