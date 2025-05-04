@@ -1,7 +1,7 @@
 # Data configuration
 data:
   # Base directory for data files
-  base_dir: "../data/"
+  base_dir: "./data/"
   
   # Default column name in CSV files
   column_name: "Adj Close"
