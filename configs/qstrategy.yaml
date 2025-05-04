@@ -1,7 +1,7 @@
 # Q-Learning Strategy configuration
 experiment:
   name: "Q-Learning Strategy Analysis"
-  output_prefix: "qstrategy"
+  output_prefix: "qstrategy"  # Ensures separate output files for Q-strategy
 
 data:
   symbol: "JPM"
@@ -14,6 +14,11 @@ data:
 
 portfolio:
   starting_value: 100000
+
+# Explicitly list which models to evaluate
+models:
+  - q_strategy_learner  # Only evaluate Q-strategy
+  - manual              # Include manual strategy for comparison
 
 q_strategy:
   # Technical indicator parameters
@@ -45,7 +50,5 @@ trading:
   impact: 0.005
 
 visualization:
-  compare_with_manual: true
-  compare_with_strategy_learner: true
-  plot_learning_curve: true
-  include_benchmark: true
+  include_benchmark: true   # Include buy & hold benchmark
+  plot_learning_curve: true # Generate Q-learning curve visualization
