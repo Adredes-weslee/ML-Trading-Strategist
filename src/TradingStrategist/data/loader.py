@@ -10,7 +10,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-
 def symbol_to_path(symbol, base_dir=None, config=None):
     """
     Return CSV file path given ticker symbol.
@@ -29,113 +28,107 @@ def symbol_to_path(symbol, base_dir=None, config=None):
     str
         Path to the CSV file for the symbol
     """
+    # Get data directory from config, environment variable, or default
     if config is not None and 'data' in config and 'base_dir' in config['data']:
         base_dir = config['data']['base_dir']
     elif base_dir is None:
-        base_dir = os.environ.get("MARKET_DATA_DIR", "../data/")
-    return os.path.join(base_dir, f"{symbol}.csv")
+        # Try environment variable first
+        base_dir = os.environ.get("MARKET_DATA_DIR")
+        
+        if base_dir is None:
+            # Try to find the data directory relative to the project root
+            current_file_path = Path(__file__).resolve()
+            project_root = current_file_path.parent.parent.parent.parent
+            data_dir = project_root / "data"
+            
+            if data_dir.exists():
+                base_dir = str(data_dir)
+            else:
+                # Fallback to relative path from current working directory
+                base_dir = "./data"
+    
+    # Convert to Path object for easier path manipulation
+    base_path = Path(base_dir)
+    file_path = base_path / f"{symbol}.csv"
+    
+    return str(file_path)
 
 
 def get_data(symbols, dates, addSPY=True, colname="Adj Close", config=None):
     """
-    Read stock data (adjusted close) for given symbols from CSV files.
+    Read stock data for given symbols from CSV files and return a pandas DataFrame.
     
     Parameters:
     -----------
     symbols : list
-        List of symbols to retrieve data for
-    dates : pd.DatetimeIndex
-        Dates to retrieve data for
+        List of stock symbols to read
+    dates : pd.date_range
+        Range of dates to retrieve data for
     addSPY : bool, optional
-        Add SPY data for reference
+        Whether to add SPY data if not already in symbols, default True
     colname : str, optional
-        Column name to use from the CSV files
+        Column to read from CSV files, default "Adj Close"
     config : dict, optional
         Configuration dictionary
         
     Returns:
     --------
-    pd.DataFrame
-        DataFrame containing data for all symbols
+    pd.DataFrame: Stock data for the given symbols and dates
     """
-    # Use config if provided
-    if config is not None and 'data' in config:
-        if 'add_spy' in config['data']:
-            addSPY = config['data']['add_spy']
-        if 'column_name' in config['data']:
-            colname = config['data']['column_name']
+    # Create empty DataFrame with dates as index
+    df_data = pd.DataFrame(index=dates)
     
-    df = pd.DataFrame(index=dates)
+    # Add SPY if needed
+    symbols_list = symbols.copy()
+    if addSPY and 'SPY' not in symbols_list:
+        symbols_list = ['SPY'] + symbols_list
     
-    # Add SPY for reference, if absent
-    if addSPY and "SPY" not in symbols:  
-        symbols = ["SPY"] + list(symbols)
+    # Read data for each symbol
+    for symbol in symbols_list:
+        file_path = symbol_to_path(symbol, config=config)
+        try:
+            df_temp = pd.read_csv(file_path, index_col='Date', parse_dates=True, usecols=['Date', colname])
+            # Rename column to symbol for identification
+            df_temp = df_temp.rename(columns={colname: symbol})
+            df_data = df_data.join(df_temp, how='left')
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Price data not found for {symbol} at {file_path}. Please download the data first.")
+        except pd.errors.EmptyDataError:
+            raise ValueError(f"No data in file for {symbol} at {file_path}.")
+        except Exception as e:
+            raise Exception(f"Error loading data for {symbol}: {str(e)}")
     
-    for symbol in symbols:
-        df_temp = pd.read_csv(
-            symbol_to_path(symbol, config=config),
-            index_col="Date",
-            parse_dates=True,
-            usecols=["Date", colname],
-            na_values=["nan"],
-        )
-        df_temp = df_temp.rename(columns={colname: symbol})
-        df = df.join(df_temp)
-        
-        # Drop dates SPY did not trade
-        if symbol == "SPY":
-            df = df.dropna(subset=["SPY"])
+    # Handle missing data
+    if df_data.isna().any().any():
+        print("Warning: Missing data detected. Forward-filling missing values.")
+        # Update to use ffill() and bfill() instead of fillna(method='ffill')
+        df_data = df_data.ffill()
+        df_data = df_data.bfill()
+        if df_data.isna().any().any():
+            raise ValueError("Missing data could not be filled completely. Check your input date range.")
     
-    return df
+    return df_data
 
 
 def plot_data(df, title="Stock prices", xlabel="Date", ylabel="Price", save_path=None, config=None):
-    """
-    Plot stock prices with a custom title and meaningful axis labels.
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        DataFrame containing stock price data
-    title : str, optional
-        Plot title
-    xlabel : str, optional
-        X-axis label
-    ylabel : str, optional
-        Y-axis label
-    save_path : str, optional
-        Path to save the figure instead of displaying it
-    config : dict, optional
-        Configuration dictionary
-    """
-    # Use config if provided
-    fig_size = (10, 6)
-    font_size = 12
-    
-    if config is not None and 'visualization' in config:
-        if 'title' in config['visualization'] and title == "Stock prices":
-            title = config['visualization']['title']
-        if 'xlabel' in config['visualization']:
-            xlabel = config['visualization']['xlabel']
-        if 'ylabel' in config['visualization']:
-            ylabel = config['visualization']['ylabel']
-        if 'save_path' in config['visualization'] and not save_path:
-            save_path = config['visualization']['save_path']
-        if 'fig_size' in config['visualization']:
-            fig_size = tuple(config['visualization']['fig_size'])
-        if 'font_size' in config['visualization']:
-            font_size = config['visualization']['font_size']
-    
-    fig, ax = plt.subplots(figsize=fig_size)
-    df.plot(ax=ax, title=title, fontsize=font_size)
+    """Plot stock prices."""
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    ax.grid(True)
     
-    if save_path:
+    for column in df.columns:
+        ax.plot(df.index, df[column], label=column)
+    
+    ax.legend(loc='best')
+    
+    if save_path is not None:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path)
-        plt.close()
-    else:
-        plt.show()
+    
+    return fig, ax
 
 
 def get_data_dir(folder_name, default_folder, config=None):
