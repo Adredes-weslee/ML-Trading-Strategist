@@ -1,163 +1,164 @@
 """
-Market Simulation Module
+Market Simulator
 
-This module provides market simulation functionality for evaluating trading strategies.
-It includes portfolio value calculation and performance metrics assessment.
+This module provides functionality for simulating market trading
+and evaluating trading strategy performance.
 """
 
 import pandas as pd
 import numpy as np
-from TradingStrategist.data.loader import get_data
 
 
-def compute_portvals(orders_df, start_val=100000, commission=9.95, impact=0.005, config=None):
+def compute_portvals(orders, start_val=100000.0, commission=9.95, impact=0.005,
+                     start_date=None, end_date=None, prices_df=None):
     """
-    Compute portfolio values based on trade orders.
+    Compute portfolio values over time based on a set of orders.
     
     Parameters:
     -----------
-    orders_df : pd.DataFrame
-        Trade orders dataframe with date index and columns for each symbol
-        Values should be number of shares to buy (positive) or sell (negative)
-    start_val : int, optional
+    orders : pd.DataFrame
+        Orders DataFrame with dates as index and symbols as columns, 
+        values represent shares to trade (positive for buy, negative for sell)
+    start_val : float, optional
         Starting portfolio value, default 100000
     commission : float, optional
-        Trading commission per trade, default 9.95
+        Fixed commission for each trade, default 9.95
     impact : float, optional
-        Market impact per trade as a percentage of trade value, default 0.005 (0.5%)
-    config : dict, optional
-        Configuration dictionary with simulation parameters
+        Market impact per share traded, default 0.005
+    start_date : datetime, optional
+        Start date for portfolio simulation
+    end_date : datetime, optional
+        End date for portfolio simulation
+    prices_df : pd.DataFrame, optional
+        Prices DataFrame if already available
         
     Returns:
     --------
     pd.DataFrame
-        Portfolio value over time
+        Portfolio values over time
     """
-    # Use config if provided, otherwise use default values
-    if config is not None:
-        if 'trading' in config:
-            commission = config['trading'].get('commission', commission)
-            impact = config['trading'].get('impact', impact)
-        if 'portfolio' in config:
-            start_val = config['portfolio'].get('starting_value', start_val)
+    from TradingStrategist.data.loader import get_data
     
-    if orders_df.empty:
-        return pd.DataFrame({'portfolio_value': [start_val]}, index=[orders_df.index[0]])
-
-    # Get list of symbols
-    symbols = orders_df.columns.tolist()
+    # Get the unique symbols from the orders DataFrame
+    symbols = orders.columns.tolist()
     
-    # Get price data for all symbols
-    start_date = orders_df.index.min()
-    end_date = orders_df.index.max()
-    dates = pd.date_range(start_date, end_date)
-    prices_all = get_data(symbols, dates, addSPY=False)
+    # If start and end dates are not provided, infer from orders
+    if start_date is None:
+        start_date = orders.index.min()
+    if end_date is None:
+        end_date = orders.index.max()
     
-    # Forward fill any missing prices
-    prices_all = prices_all.fillna(method='ffill')
-    prices_all = prices_all.fillna(method='bfill')
+    # Get price data if not provided
+    if prices_df is None:
+        prices_all = get_data(symbols, pd.date_range(start_date, end_date))
+        
+        # Remove SPY if it was added automatically
+        prices_df = prices_all[symbols]
     
-    # Create trades dataframe
-    trades = pd.DataFrame(0.0, index=prices_all.index, columns=symbols)
+    # Forward-fill and backward-fill prices to handle missing data
+    prices_all = prices_df.copy()
+    prices_all = prices_all.ffill()
+    prices_all = prices_all.bfill()
     
-    # Track cash and holdings
-    holdings = pd.DataFrame(0, index=prices_all.index, columns=symbols)
-    cash = pd.Series(start_val, index=prices_all.index)
-
-    # Process orders chronologically
-    for date in orders_df.index:
+    # Initialize holdings and values DataFrames with float64 dtype to avoid dtype warnings
+    holdings = pd.DataFrame(0.0, index=prices_all.index, columns=symbols, dtype=np.float64)
+    values = pd.DataFrame(0.0, index=prices_all.index, columns=symbols, dtype=np.float64)
+    
+    # Initialize cash Series with float64 dtype
+    cash = pd.Series(float(start_val), index=prices_all.index, dtype=np.float64)
+    
+    # Process orders and update holdings and cash
+    for date in orders.index:
+        if date not in prices_all.index:
+            continue
+        
         for symbol in symbols:
-            shares = orders_df.loc[date, symbol]
+            shares = orders.loc[date, symbol]
             if shares == 0:
                 continue
             
+            # Calculate transaction cost (commission + impact)
             price = prices_all.loc[date, symbol]
+            trade_cost = abs(shares) * price * impact
+            commission_cost = commission if shares != 0 else 0
             
-            # Calculate cost of trade including impact
-            impact_factor = 1.0 + (impact * np.sign(shares))
-            trade_cost = abs(shares) * price * impact_factor
+            # Update holdings
+            holdings.loc[date:, symbol] += float(shares)
             
-            # Update holdings and cash
-            trades.loc[date, symbol] = shares
-            cash[date] -= trade_cost + commission if shares != 0 else 0
+            # Update cash - already float dtype
+            cash_value = cash[date] - (shares * price + trade_cost + commission_cost)
+            cash.loc[date:] = cash_value
     
-    # Calculate cumulative holdings
-    for symbol in symbols:
-        holdings[symbol] = trades[symbol].cumsum()
-    
-    # Propagate cash forward
-    cash = cash.cumsum()
-    
-    # Calculate daily portfolio value
-    values = pd.DataFrame(index=prices_all.index, columns=['portfolio_value'])
-    
+    # Calculate daily value of each position
     for date in prices_all.index:
-        # Stock values
-        stock_values = 0
         for symbol in symbols:
-            stock_values += holdings.loc[date, symbol] * prices_all.loc[date, symbol]
-        
-        # Total value is stock values plus cash
-        values.loc[date, 'portfolio_value'] = stock_values + cash[date]
+            values.loc[date, symbol] = holdings.loc[date, symbol] * prices_all.loc[date, symbol]
     
-    return values
+    # Calculate portfolio value (cash + sum of all position values)
+    portval = pd.DataFrame(index=prices_all.index)
+    portval['portfolio_value'] = cash + values.sum(axis=1)
+    
+    return portval
 
 
-def assess_portfolio(portfolio_values, rfr=0.0, sf=252.0, config=None):
+def assess_portfolio(portvals, risk_free_rate=0.0, sampling_freq=252.0):
     """
-    Calculate portfolio performance metrics.
+    Assess portfolio performance metrics.
+    
+    Parameters:
+    -----------
+    portvals : pd.DataFrame
+        Portfolio values over time
+    risk_free_rate : float, optional
+        Daily risk-free rate, default 0
+    sampling_freq : float, optional
+        Trading days in a year, default 252
+        
+    Returns:
+    --------
+    tuple
+        (Cumulative return, Average daily return, Standard deviation daily return,
+         Sharpe ratio, End value)
+    """
+    # Get portfolio statistics (same as compute_portfolio_stats but with different return format)
+    sr, cr, adr, sddr = compute_portfolio_stats(portvals, risk_free_rate, sampling_freq)
+    
+    # Calculate end value
+    ev = portvals.iloc[-1, 0]
+    
+    return cr, adr, sddr, sr, ev
+
+
+def compute_portfolio_stats(portfolio_values, daily_rf=0.0, samples_per_year=252):
+    """
+    Compute portfolio statistics: Sharpe ratio, cumulative returns, average daily return, and STD daily return.
     
     Parameters:
     -----------
     portfolio_values : pd.DataFrame
-        Portfolio value over time
-    rfr : float, optional
-        Risk-free rate (annualized), default 0.0
-    sf : float, optional
-        Sampling frequency (e.g., 252 trading days per year), default 252.0
-    config : dict, optional
-        Configuration dictionary with assessment parameters
+        Portfolio values over time
+    daily_rf : float, optional
+        Daily risk-free rate, default 0
+    samples_per_year : int, optional
+        Trading days in a year, default 252
         
     Returns:
     --------
-    dict
-        Dictionary of performance metrics
+    tuple
+        (Sharpe ratio, Cumulative return, Average daily return, STD daily return)
     """
-    # Use config if provided, otherwise use default values
-    if config is not None and 'performance' in config:
-        rfr = config['performance'].get('risk_free_rate', rfr)
-        sf = config['performance'].get('sampling_frequency', sf)
-    
-    # Extract portfolio value series
-    if isinstance(portfolio_values, pd.DataFrame):
-        portvals = portfolio_values['portfolio_value']
-    else:
-        portvals = portfolio_values
-    
     # Calculate daily returns
-    daily_returns = portvals.pct_change().dropna()
+    daily_returns = portfolio_values.pct_change().dropna()
     
-    # Calculate metrics
-    cumulative_return = (portvals.iloc[-1] / portvals.iloc[0]) - 1.0
-    avg_daily_return = daily_returns.mean()
-    std_daily_return = daily_returns.std()
+    # Calculate average daily return and standard deviation of daily return
+    avg_daily_ret = daily_returns.mean().values[0]
+    std_daily_ret = daily_returns.std().values[0]
     
-    # Annualize returns and calculate Sharpe ratio
-    annualized_return = (1.0 + avg_daily_return) ** sf - 1.0
-    annualized_risk = std_daily_return * np.sqrt(sf)
-    sharpe_ratio = np.sqrt(sf) * (avg_daily_return - rfr/sf) / std_daily_return if std_daily_return > 0 else 0
+    # Calculate Sharpe ratio
+    sharpe_ratio = np.sqrt(samples_per_year) * (avg_daily_ret - daily_rf) / std_daily_ret if std_daily_ret > 0 else 0
     
-    # Calculate maximum drawdown
-    peak = portvals.expanding().max()
-    drawdown = (portvals / peak) - 1.0
-    max_drawdown = drawdown.min()
+    # Calculate cumulative return
+    cum_ret = (portfolio_values.iloc[-1] / portfolio_values.iloc[0]) - 1
+    cum_ret = cum_ret.values[0]
     
-    return {
-        'cumulative_return': cumulative_return,
-        'avg_daily_return': avg_daily_return,
-        'std_daily_return': std_daily_return,
-        'sharpe_ratio': sharpe_ratio,
-        'annualized_return': annualized_return,
-        'annualized_risk': annualized_risk,
-        'max_drawdown': max_drawdown
-    }
+    return sharpe_ratio, cum_ret, avg_daily_ret, std_daily_ret
