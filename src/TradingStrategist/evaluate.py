@@ -70,7 +70,7 @@ def plot_performance_comparison(results, title, filename, output_path):
     colors = {
         'Benchmark': 'black',
         'Manual Strategy': 'red',
-        'Strategy Learner': 'blue',
+        'Tree Strategy Learner': 'blue',
         'Q-Strategy Learner': 'green'
     }
     
@@ -126,7 +126,7 @@ def create_benchmark(symbol, start_date, end_date, starting_value, commission, i
     trades.iloc[0] = 1000  # Buy 1000 shares on first day and hold
     
     # Calculate portfolio values
-    benchmark_values = compute_portvals(orders_df=trades, 
+    benchmark_values = compute_portvals(orders=trades, 
                                        start_val=starting_value, 
                                        commission=commission, 
                                        impact=impact)
@@ -230,7 +230,7 @@ def evaluate_model(model_name, symbol, start_date, end_date,
     
     # Compute portfolio values
     portvals = compute_portvals(
-        orders_df=trades, 
+        orders=trades, 
         start_val=starting_value, 
         commission=commission, 
         impact=impact
@@ -348,7 +348,7 @@ def run_evaluation(config_path):
                 starting_value=starting_value, commission=commission, impact=impact,
                 strategy_params=strategy_params
             )
-            results['Strategy Learner'] = portvals
+            results['Tree Strategy Learner'] = portvals  # Changed from "Strategy Learner" to "Tree Strategy Learner"
         elif model_name == "q_strategy_learner":
             portvals = evaluate_model(
                 model_name, symbol, test_start, test_end,
