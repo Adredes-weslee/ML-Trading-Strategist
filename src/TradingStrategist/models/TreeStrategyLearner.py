@@ -121,7 +121,11 @@ class TreeStrategyLearner:
         # Use class parameters instead of hardcoded values
         bb = self.indicators.bollinger_indicator(price_series, window=self.window_size)
         rsi = self.indicators.rsi_indicator(price_series, window=self.rsi_window) / self.rsi_norm
-        macd = self.indicators.macd_indicator(price_series)
+        
+        # Fix: Properly handle the MACD tuple return value
+        macd_line, signal_line = self.indicators.macd_indicator(price_series)
+        macd_hist = macd_line - signal_line  # MACD histogram is the difference
+        
         stoch = self.indicators.stoch_indicator(price_series, window=self.stoch_window) / self.stoch_norm
         cci = self.indicators.cci_indicator(price_series, window=self.cci_window) / self.cci_norm
         
@@ -129,7 +133,7 @@ class TreeStrategyLearner:
         features = pd.DataFrame(index=prices.index)
         features['BB'] = bb
         features['RSI'] = rsi  
-        features['MACD'] = macd
+        features['MACD'] = macd_hist  # Fix: Use the MACD histogram
         features['Stoch'] = stoch
         features['CCI'] = cci
         
