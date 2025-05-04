@@ -14,11 +14,38 @@ import numpy as np
 import os
 import argparse
 from pathlib import Path
+from colorama import init, Fore, Style
+
+# Initialize colorama for colored terminal output
+init()
 
 from TradingStrategist.models.ManualStrategy import ManualStrategy
 from TradingStrategist.data.loader import get_data
 from TradingStrategist.simulation.market_sim import compute_portvals
 from TradingStrategist.utils.helpers import get_output_path, load_config
+
+
+def print_section(title):
+    """Print a colored section header"""
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "="*80 + f"{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}    {title}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "="*80 + f"{Style.RESET_ALL}")
+
+
+def print_subsection(title):
+    """Print a colored subsection header"""
+    print(f"\n{Fore.YELLOW}{Style.BRIGHT}>> {title}{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}{Style.BRIGHT}" + "-"*60 + f"{Style.RESET_ALL}")
+
+
+def print_status(message):
+    """Print a status message"""
+    print(f"{Fore.GREEN}● {message}{Style.RESET_ALL}")
+
+
+def print_file_saved(file_path):
+    """Print a message when a file is saved"""
+    print(f"{Fore.MAGENTA}✓ SAVED: {file_path}{Style.RESET_ALL}")
 
 
 def plot_strategy_comparison(trades, portvals, benchvals, title, filename, config=None):
@@ -95,8 +122,10 @@ def plot_strategy_comparison(trades, portvals, benchvals, title, filename, confi
     
     # Ensure output directory exists
     output_path = get_output_path()
-    plt.savefig(os.path.join(output_path, filename))
+    file_path = os.path.join(output_path, filename)
+    plt.savefig(file_path)
     plt.close()
+    print_file_saved(file_path)
 
 
 def calc_stats(portvals, benchvals, config=None):
@@ -187,35 +216,54 @@ def run_manual_strategy_test(symbol, sd, ed, sv=100000, commission=9.95, impact=
                 ms_params['position_size'] = position_size
     
     # Create strategy with parameters
+    print_subsection("1/4 - Initializing ManualStrategy")
     ms = ManualStrategy(**ms_params)
-    trades = ms.testPolicy(symbol=symbol, sd=sd, ed=ed, sv=sv)
     
-    # Compute portfolio values with config
+    # Display the strategy parameters
+    print_status(f"ManualStrategy initialized for {symbol} with parameters:")
+    for param, value in ms_params.items():
+        print(f"  - {param}: {value}")
+    
+    # Generate trades
+    print_subsection("2/4 - Generating Trading Decisions")
+    print_status(f"Generating Manual Strategy trades for {symbol}...")
+    import time
+    start_time = time.time()
+    trades = ms.testPolicy(symbol=symbol, sd=sd, ed=ed, sv=sv)
+    trading_time = time.time() - start_time
+    trade_count = (trades != 0).sum()[0]
+    print_status(f"Strategy generated {trade_count} trades in {trading_time:.2f} seconds")
+    
+    # Compute portfolio values
+    print_subsection("3/4 - Simulating Portfolio Performance")
+    print_status(f"Simulating Manual Strategy portfolio...")
     portvals = compute_portvals(
-        orders_df=trades, 
+        orders=trades, 
         start_val=sv, 
         commission=commission, 
-        impact=impact,
-        config=config
+        impact=impact
     )
     
     # Create benchmark with configurable position size
+    print_status(f"Creating benchmark (buy & hold) portfolio...")
     benchmark_trades = pd.DataFrame(index=trades.index)
     benchmark_trades[symbol] = 0
     benchmark_trades.iloc[0] = position_size  # Use configurable position size
     
-    # Compute benchmark values with config
+    # Compute benchmark values
     benchvals = compute_portvals(
-        orders_df=benchmark_trades, 
+        orders=benchmark_trades, 
         start_val=sv, 
         commission=commission, 
-        impact=impact,
-        config=config
+        impact=impact
     )
     
-    # Calculate performance stats with config
+    # Calculate performance stats
+    print_subsection("4/4 - Calculating Performance Metrics")
+    print_status(f"Computing performance statistics...")
     stats = calc_stats(portvals, benchvals, config=config)
     
+    # Return results
     return trades, portvals, benchvals, stats
 
 
@@ -259,9 +307,24 @@ def run_evaluation_from_config(config_path):
     
     # Get output file prefix
     output_prefix = config['experiment']['output_prefix']
+    experiment_name = config['experiment'].get('name', 'Manual Strategy Evaluation')
+    
+    # Print experiment header with configuration summary
+    print_section(f"MANUAL STRATEGY EVALUATION: {experiment_name}")
+    
+    print_status(f"Symbol: {symbol}")
+    print_status(f"Portfolio: Starting value ${initial_value:,.2f}")
+    print_status(f"Trading costs: Commission ${commission:.2f}, Market impact {impact:.3f}")
+    
+    # Show strategy configuration if available
+    if 'manual_strategy' in config:
+        print_subsection("Strategy Configuration")
+        for param, value in config['manual_strategy'].items():
+            print(f"  - {param}: {value}")
     
     # Run in-sample test with config
-    print(f"Running Manual Strategy - In-Sample Test ({in_sample_start.strftime('%Y-%m-%d')} to {in_sample_end.strftime('%Y-%m-%d')})")
+    print_section("IN-SAMPLE TEST")
+    print_status(f"Date Range: {in_sample_start.strftime('%Y-%m-%d')} to {in_sample_end.strftime('%Y-%m-%d')}")
     trades_in, portvals_in, benchvals_in, stats_in = run_manual_strategy_test(
         symbol=symbol,
         sd=in_sample_start,
@@ -272,8 +335,9 @@ def run_evaluation_from_config(config_path):
         config=config  # Pass config
     )
     
-    # Plot in-sample results with config - FIX: renamed function call
-    plot_strategy_comparison(  # Changed from plot_manual_strategy
+    # Plot in-sample results with config
+    print_status(f"Creating performance chart...")
+    plot_strategy_comparison(
         trades_in, 
         portvals_in, 
         benchvals_in,
@@ -283,15 +347,26 @@ def run_evaluation_from_config(config_path):
     )
     
     # Print in-sample statistics
-    print("\nIn-Sample Statistics:")
+    print_subsection("In-Sample Performance Summary")
     for metric in ["Cumulative Return", "Average Daily Return", "Std Dev Daily Return", "Sharpe Ratio"]:
-        print(f"{metric}:")
-        print(f"  Strategy: {stats_in['Strategy'][metric]:.6f}")
-        print(f"  Benchmark: {stats_in['Benchmark'][metric]:.6f}")
+        strat_value = stats_in['Strategy'][metric]
+        bench_value = stats_in['Benchmark'][metric]
+        # Colorize based on comparison
+        if metric == "Sharpe Ratio" or metric == "Average Daily Return" or metric == "Cumulative Return":
+            strat_color = Fore.GREEN if strat_value > bench_value else Fore.RED
+            bench_color = Fore.GREEN if bench_value > strat_value else Fore.RED
+        else:  # For volatility/std dev, lower is better
+            strat_color = Fore.GREEN if strat_value < bench_value else Fore.RED
+            bench_color = Fore.GREEN if bench_value < strat_value else Fore.RED
+        
+        print(f"{Fore.WHITE}{Style.BRIGHT}{metric}:{Style.RESET_ALL}")
+        print(f"  Strategy: {strat_color}{strat_value:.6f}{Style.RESET_ALL}")
+        print(f"  Benchmark: {bench_color}{bench_value:.6f}{Style.RESET_ALL}")
     
     # Run out-of-sample test if dates are provided
     if run_out_of_sample:
-        print(f"\nRunning Manual Strategy - Out-of-Sample Test ({out_sample_start.strftime('%Y-%m-%d')} to {out_sample_end.strftime('%Y-%m-%d')})")
+        print_section("OUT-OF-SAMPLE TEST")
+        print_status(f"Date Range: {out_sample_start.strftime('%Y-%m-%d')} to {out_sample_end.strftime('%Y-%m-%d')}")
         trades_out, portvals_out, benchvals_out, stats_out = run_manual_strategy_test(
             symbol=symbol,
             sd=out_sample_start,
@@ -302,8 +377,9 @@ def run_evaluation_from_config(config_path):
             config=config  # Pass config
         )
         
-        # Plot out-of-sample results with config - FIX: renamed function call
-        plot_strategy_comparison(  # Changed from plot_manual_strategy
+        # Plot out-of-sample results with config
+        print_status(f"Creating performance chart...")
+        plot_strategy_comparison(
             trades_out, 
             portvals_out, 
             benchvals_out,
@@ -313,11 +389,29 @@ def run_evaluation_from_config(config_path):
         )
         
         # Print out-of-sample statistics
-        print("\nOut-of-Sample Statistics:")
+        print_subsection("Out-of-Sample Performance Summary")
         for metric in ["Cumulative Return", "Average Daily Return", "Std Dev Daily Return", "Sharpe Ratio"]:
-            print(f"{metric}:")
-            print(f"  Strategy: {stats_out['Strategy'][metric]:.6f}")
-            print(f"  Benchmark: {stats_out['Benchmark'][metric]:.6f}")
+            strat_value = stats_out['Strategy'][metric]
+            bench_value = stats_out['Benchmark'][metric]
+            # Colorize based on comparison
+            if metric == "Sharpe Ratio" or metric == "Average Daily Return" or metric == "Cumulative Return":
+                strat_color = Fore.GREEN if strat_value > bench_value else Fore.RED
+                bench_color = Fore.GREEN if bench_value > strat_value else Fore.RED
+            else:  # For volatility/std dev, lower is better
+                strat_color = Fore.GREEN if strat_value < bench_value else Fore.RED
+                bench_color = Fore.GREEN if bench_value < strat_value else Fore.RED
+            
+            print(f"{Fore.WHITE}{Style.BRIGHT}{metric}:{Style.RESET_ALL}")
+            print(f"  Strategy: {strat_color}{strat_value:.6f}{Style.RESET_ALL}")
+            print(f"  Benchmark: {bench_color}{bench_value:.6f}{Style.RESET_ALL}")
+    
+    # Print summary of outputs
+    print_section("EXPERIMENT OUTPUTS")
+    print(f"  - In-sample chart: {os.path.join(get_output_path(), f'{output_prefix}_in_sample.png')}")
+    if run_out_of_sample:
+        print(f"  - Out-of-sample chart: {os.path.join(get_output_path(), f'{output_prefix}_out_sample.png')}")
+    print(f"\n{Fore.GREEN}{Style.BRIGHT}Evaluation completed successfully!{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "="*80 + f"{Style.RESET_ALL}")
 
 
 def main():
