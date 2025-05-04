@@ -96,3 +96,18 @@ class BagLearner:
         result = np.mean(predictions, axis=0)
         
         return result
+        
+    def get_feature_importances(self):
+        """
+        Get the average feature importance across all learners in the ensemble.
+        
+        Returns:
+        --------
+        numpy.ndarray: Feature importance scores averaged across all base learners.
+        """
+        if not hasattr(self.learners[0], 'get_feature_importances'):
+            raise AttributeError("Base learner does not support feature importance calculation")
+        
+        # Get feature importances from each learner and average them
+        importances = [learner.get_feature_importances() for learner in self.learners]
+        return np.mean(importances, axis=0)
