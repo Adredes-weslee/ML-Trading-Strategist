@@ -148,6 +148,10 @@ class QStrategyLearner:
         int
             Bin index (0 to bins-1)
         """
+        # Handle NaN values
+        if np.isnan(value):
+            return 0  # Default to first bin for NaN values
+            
         if value <= min_val:
             return 0
         if value >= max_val:
@@ -239,10 +243,14 @@ class QStrategyLearner:
         """
         price_series = prices[symbol]
         
+        # Fix: Properly handle the MACD tuple return value
+        macd_line, signal_line = self.indicators.macd_indicator(price_series)
+        macd_hist = macd_line - signal_line  # MACD histogram is the difference
+        
         indicators = {
             'bollinger': self.indicators.bollinger_indicator(price_series, window=self.window_size),
             'rsi': self.indicators.rsi_indicator(price_series, window=self.rsi_window),
-            'macd': self.indicators.macd_indicator(price_series),
+            'macd': macd_hist,  # Store the MACD histogram instead of the tuple
             'daily_returns': price_series.pct_change()
         }
         
