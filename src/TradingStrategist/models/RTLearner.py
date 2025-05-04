@@ -31,6 +31,7 @@ class RTLearner:
         self.leaf_size = leaf_size
         self.verbose = verbose
         self.tree = None  # Will be built during training
+        self.feature_count = None  # Set during training
     
     def addEvidence(self, data_x, data_y):
         """
@@ -49,6 +50,9 @@ class RTLearner:
             
         if len(data_x) == 0:
             raise ValueError("Cannot train on empty dataset")
+        
+        # Store the feature count for feature importance calculation
+        self.feature_count = data_x.shape[1]
         
         # Build the tree recursively
         self.tree = self._build_tree(data_x, data_y)
@@ -149,3 +153,36 @@ class RTLearner:
             predictions[i] = self.tree[node_idx, 1]
             
         return predictions
+        
+    def get_feature_importances(self):
+        """
+        Calculate feature importance based on how frequently features are used for splitting.
+        
+        Returns:
+        --------
+        numpy.ndarray: Normalized feature importance scores
+        """
+        if not hasattr(self, 'tree') or self.tree is None:
+            raise ValueError("Model has not been trained")
+        
+        if self.feature_count is None:
+            raise ValueError("Feature count is not set")
+        
+        # Count feature usage in splits
+        feature_counts = np.zeros(self.feature_count)
+        
+        # Iterate through the tree and count feature usage in splits
+        # Tree structure: [feature, split_val, left_tree, right_tree]
+        for i in range(len(self.tree)):
+            node = self.tree[i]
+            feature_idx = int(node[0])
+            # If this is not a leaf node (indicated by feature >= 0)
+            if feature_idx >= 0:
+                feature_counts[feature_idx] += 1
+        
+        # Normalize to get importance
+        total = np.sum(feature_counts)
+        if total > 0:
+            return feature_counts / total
+        else:
+            return np.zeros(self.feature_count)
