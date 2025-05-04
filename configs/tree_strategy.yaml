@@ -1,7 +1,7 @@
 # Decision Tree Strategy configuration
 experiment:
   name: "Decision Tree Strategy Analysis"
-  output_prefix: "dt_strategy"
+  output_prefix: "tree_strategy"  # Ensures separate output files for tree strategy
 
 data:
   symbol: "JPM"
@@ -43,7 +43,11 @@ trading:
   commission: 9.95
   impact: 0.005
 
+# Explicitly list which models to evaluate
+models:
+  - manual
+  - strategy_learner
+
 visualization:
-  compare_with_manual: true
-  plot_decision_tree: false
-  include_benchmark: true
+  include_benchmark: true  # Include buy & hold benchmark
+  plot_decision_tree: true # Generate decision tree visualization
