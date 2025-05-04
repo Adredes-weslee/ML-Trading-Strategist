@@ -176,8 +176,8 @@ class ManualStrategy:
         macd, signal = self.indicators.macd_indicator(prices)
         indicators['macd'] = macd - signal  # MACD histogram
         
-        # Compute Stochastic Oscillator - FIX: match method name with Indicators class
-        indicators['stoch'] = self.indicators.stochastic_indicator(prices, window=stoch_window)
+        # Compute Stochastic Oscillator - Fix the method name to match what's in Indicators class
+        indicators['stoch'] = self.indicators.stoch_indicator(prices, window=stoch_window)
         
         # Compute CCI
         indicators['cci'] = self.indicators.cci_indicator(prices, window=cci_window)
