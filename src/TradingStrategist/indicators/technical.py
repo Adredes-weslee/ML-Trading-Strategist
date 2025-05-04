@@ -1,9 +1,8 @@
 """
-Technical Indicators for Trading Strategy Analysis
+Technical Indicators Module
 
-This module provides implementations of common technical indicators used
-in trading strategies, including Bollinger Bands, RSI, MACD, Stochastic
-Oscillator, and CCI.
+This module provides implementations of various technical indicators
+for financial analysis and algorithmic trading strategies.
 """
 
 import pandas as pd
@@ -12,239 +11,333 @@ import numpy as np
 
 class Indicators:
     """
-    A collection of technical indicators for market analysis.
+    Technical indicators implementation for trading strategies.
     
-    Each indicator method accepts price data and returns the calculated
-    indicator values as a pandas Series.
+    This class provides a comprehensive set of technical indicators
+    commonly used in financial analysis and algorithmic trading.
     """
     
     def __init__(self, config=None):
         """
-        Initialize the Indicators class with optional configuration.
+        Initialize the Indicators class.
         
         Parameters:
         -----------
         config : dict, optional
-            Configuration dictionary for technical indicators
+            Configuration parameters for indicators
         """
-        # Default configuration values
-        self.config = {
-            # Bollinger Bands
-            'bb_window': 20,
-            'bb_std_dev': 2.0,
-            'bb_upper_threshold': 1.0,
-            'bb_lower_threshold': -1.0,
-            
-            # RSI
-            'rsi_window': 14,
-            'rsi_upper_threshold': 70,
-            'rsi_lower_threshold': 30,
-            
-            # MACD
-            'macd_fast_period': 12,
-            'macd_slow_period': 26,
-            'macd_signal_period': 9,
-            
-            # Stochastic Oscillator
-            'stoch_window': 14,
-            'stoch_upper_threshold': 80,
-            'stoch_lower_threshold': 20,
-            
-            # CCI
-            'cci_window': 20,
-            'cci_constant': 0.015,
-            'cci_upper_threshold': 100,
-            'cci_lower_threshold': -100
-        }
-        
-        # Update with custom configuration if provided
-        if config is not None:
-            self.config.update(config)
-
-    def bollinger_indicator(self, prices, window=None):
+        self.config = config if config is not None else {}
+    
+    def sma_indicator(self, prices, window=20):
         """
-        Calculate Bollinger Bands indicator.
+        Calculate Simple Moving Average (SMA).
         
         Parameters:
         -----------
-        prices : pd.Series
+        prices : pandas.Series
             Price data
         window : int, optional
-            Rolling window size, defaults to config value
+            Window size, default 20
             
         Returns:
         --------
-        pd.Series
-            Normalized Bollinger Bands values
+        pandas.Series
+            SMA values
         """
-        window = window if window is not None else self.config['bb_window']
-        std_dev = self.config['bb_std_dev']
-        upper_threshold = self.config['bb_upper_threshold']
-        lower_threshold = self.config['bb_lower_threshold']
-        
-        sma = prices.rolling(window).mean()
-        std = prices.rolling(window).std()
-        bb = (prices - sma) / (std_dev * std)
-        
-        prev_bb = bb.shift(1)
-        signals = pd.Series(0, index=bb.index)
-
-        cross_down = (prev_bb >= lower_threshold) & (bb < lower_threshold)
-        signals.loc[cross_down] = 1  
-
-        cross_up = (prev_bb <= upper_threshold) & (bb > upper_threshold)
-        signals.loc[cross_up] = -1  
-        
-        bb_line = (prices - sma) / (std_dev * std.replace(0, np.nan))
-        return bb_line.fillna(0.0)
-
-    def rsi_indicator(self, prices, window=None):
+        return prices.rolling(window=window).mean()
+    
+    def ema_indicator(self, prices, window=20):
         """
-        Calculate Relative Strength Index (RSI).
+        Calculate Exponential Moving Average (EMA).
         
         Parameters:
         -----------
-        prices : pd.Series
+        prices : pandas.Series
             Price data
         window : int, optional
-            Rolling window size, defaults to config value
+            Window size, default 20
             
         Returns:
         --------
-        pd.Series
-            RSI values (0-100 scale)
+        pandas.Series
+            EMA values
         """
-        window = window if window is not None else self.config['rsi_window']
-        upper_threshold = self.config['rsi_upper_threshold']
-        lower_threshold = self.config['rsi_lower_threshold']
+        return prices.ewm(span=window).mean()
+    
+    def bollinger_indicator(self, prices, window=20, num_std=2):
+        """
+        Calculate Bollinger Bands percentage (price relative to bands width).
         
-        delta = prices.diff()
-        gains = delta.clip(lower=0)
-        losses = -delta.clip(upper=0)
-        avg_gain = gains.rolling(window=window, min_periods=window).mean()
-        avg_loss = losses.rolling(window=window, min_periods=window).mean()
-        rs = avg_gain / avg_loss.replace(to_replace=0, method='ffill').replace(np.nan, 1e-9)
-        rsi_val = 100 - (100 / (1 + rs))
-
-        prev_rsi = rsi_val.shift(1)
-        signals = pd.Series(0, index=rsi_val.index)
-
-        cross_down = (prev_rsi >= lower_threshold) & (rsi_val < lower_threshold)
-        signals.loc[cross_down] = 1  
-
-        cross_up = (prev_rsi <= upper_threshold) & (rsi_val > upper_threshold)
-        signals.loc[cross_up] = -1  
+        Parameters:
+        -----------
+        prices : pandas.Series
+            Price data
+        window : int, optional
+            Window size for SMA, default 20
+        num_std : int, optional
+            Number of standard deviations for bands, default 2
+            
+        Returns:
+        --------
+        pandas.Series
+            Bollinger Band percentage indicator
+        """
+        # Calculate SMA and standard deviation
+        sma = self.sma_indicator(prices, window)
+        rolling_std = prices.rolling(window=window).std()
         
-        return rsi_val.fillna(method='bfill').fillna(50.0)
-
-    def macd_indicator(self, prices, n_fast=None, n_slow=None, n_signal=None):
+        # Calculate upper and lower bands
+        upper_band = sma + (rolling_std * num_std)
+        lower_band = sma - (rolling_std * num_std)
+        
+        # Calculate (price - sma) / (upper_band - lower_band)
+        bb_pct = (prices - sma) / (upper_band - lower_band)
+        
+        return bb_pct
+    
+    def bollinger_percent_indicator(self, prices, window=20, num_std=2):
+        """
+        Calculate Bollinger Bands percentage (price relative to bands width).
+        
+        Parameters:
+        -----------
+        prices : pandas.Series
+            Price data
+        window : int, optional
+            Window size for SMA, default 20
+        num_std : int, optional
+            Number of standard deviations for bands, default 2
+            
+        Returns:
+        --------
+        pandas.Series
+            Bollinger Band percentage indicator
+        """
+        # Just call bollinger_indicator for compatibility
+        return self.bollinger_indicator(prices, window, num_std)
+    
+    def macd_indicator(self, prices, fast_period=12, slow_period=26, signal_period=9):
         """
         Calculate Moving Average Convergence Divergence (MACD).
         
         Parameters:
         -----------
-        prices : pd.Series
+        prices : pandas.Series
             Price data
-        n_fast : int, optional
-            Fast EMA period, defaults to config value
-        n_slow : int, optional
-            Slow EMA period, defaults to config value
-        n_signal : int, optional
-            Signal line period, defaults to config value
+        fast_period : int, optional
+            Fast EMA period, default 12
+        slow_period : int, optional
+            Slow EMA period, default 26
+        signal_period : int, optional
+            Signal line EMA period, default 9
             
         Returns:
         --------
-        pd.Series
-            MACD histogram values
+        tuple
+            (MACD line, signal line)
         """
-        n_fast = n_fast if n_fast is not None else self.config['macd_fast_period']
-        n_slow = n_slow if n_slow is not None else self.config['macd_slow_period']
-        n_signal = n_signal if n_signal is not None else self.config['macd_signal_period']
+        # Calculate fast and slow EMAs
+        fast_ema = self.ema_indicator(prices, fast_period)
+        slow_ema = self.ema_indicator(prices, slow_period)
         
-        ema_fast = prices.ewm(span=n_fast, adjust=False).mean()
-        ema_slow = prices.ewm(span=n_slow, adjust=False).mean()
-        macd_line = ema_fast - ema_slow
-        signal_line = macd_line.ewm(span=n_signal, adjust=False).mean()
-        macd_hist = macd_line - signal_line
-
-        prev_hist = macd_hist.shift(1)
-        signals = pd.Series(0, index=macd_hist.index)
-
-        cross_up = (prev_hist <= 0) & (macd_hist > 0)
-        signals.loc[cross_up] = 1  
-
-        cross_down = (prev_hist >= 0) & (macd_hist < 0)
-        signals.loc[cross_down] = -1 
+        # Calculate MACD line
+        macd_line = fast_ema - slow_ema
         
-        return macd_hist.fillna(0.0)
-
-    def stoch_indicator(self, prices, window=None):
+        # Calculate signal line (EMA of MACD line)
+        signal_line = macd_line.ewm(span=signal_period).mean()
+        
+        return macd_line, signal_line
+    
+    def rsi_indicator(self, prices, window=14):
+        """
+        Calculate Relative Strength Index (RSI).
+        
+        Parameters:
+        -----------
+        prices : pandas.Series
+            Price data
+        window : int, optional
+            Window size, default 14
+            
+        Returns:
+        --------
+        pandas.Series
+            RSI values
+        """
+        # Calculate price changes
+        price_diff = prices.diff()
+        
+        # Create gains (upward) and losses (downward) Series
+        gains = price_diff.copy()
+        gains[gains < 0] = 0.0
+        losses = -price_diff.copy()
+        losses[losses < 0] = 0.0
+        
+        # Calculate average gains and losses
+        avg_gain = gains.rolling(window=window).mean()
+        avg_loss = losses.rolling(window=window).mean()
+        
+        # Calculate RS (Relative Strength)
+        # Fix the deprecated method: Using replace with a fixed value instead of method='ffill'
+        # And handle division by zero by replacing zeros with small value
+        avg_loss_non_zero = avg_loss.copy()
+        avg_loss_non_zero = avg_loss_non_zero.replace(0, 1e-9)
+        rs = avg_gain / avg_loss_non_zero
+        
+        # Calculate RSI
+        rsi_val = 100.0 - (100.0 / (1.0 + rs))
+        
+        # Handle NaN and edge cases
+        # Fix the deprecated fillna(method='bfill') method
+        return rsi_val.bfill().fillna(50.0)
+    
+    def stoch_indicator(self, prices, window=14, k_period=3, d_period=3):
         """
         Calculate Stochastic Oscillator.
         
         Parameters:
         -----------
-        prices : pd.Series
+        prices : pandas.Series
             Price data
         window : int, optional
-            Rolling window size, defaults to config value
+            Window size, default 14
+        k_period : int, optional
+            %K smoothing period, default 3
+        d_period : int, optional
+            %D smoothing period, default 3
             
         Returns:
         --------
-        pd.Series
-            Stochastic K values (0-100 scale)
+        pandas.Series
+            Stochastic oscillator values
         """
-        window = window if window is not None else self.config['stoch_window']
-        upper_threshold = self.config['stoch_upper_threshold']
-        lower_threshold = self.config['stoch_lower_threshold']
+        # Find highest high and lowest low in the window
+        highest_high = prices.rolling(window=window).max()
+        lowest_low = prices.rolling(window=window).min()
         
-        rolling_low = prices.rolling(window=window).min()
-        rolling_high = prices.rolling(window=window).max()
-        stoch_k = 100 * (prices - rolling_low) / (rolling_high - rolling_low + 1e-9)
-
-        prev_stoch = stoch_k.shift(1)
-        signals = pd.Series(0, index=stoch_k.index)
-
-        cross_down = (prev_stoch >= lower_threshold) & (stoch_k < lower_threshold)
-        signals.loc[cross_down] = 1  
-
-        cross_up = (prev_stoch <= upper_threshold) & (stoch_k > upper_threshold)
-        signals.loc[cross_up] = -1  
+        # Calculate %K
+        k = 100 * ((prices - lowest_low) / (highest_high - lowest_low))
+        
+        # Smooth %K (optional)
+        if k_period > 1:
+            k = k.rolling(window=k_period).mean()
+        
+        # Calculate %D (moving average of %K)
+        d = k.rolling(window=d_period).mean()
+        
+        return k  # Return %K (common choice for trading signals)
     
-        return stoch_k.fillna(50.0)  
-
-    def cci_indicator(self, prices, window=None):
+    def atr_indicator(self, prices_high, prices_low, prices_close, window=14):
+        """
+        Calculate Average True Range (ATR).
+        
+        Parameters:
+        -----------
+        prices_high : pandas.Series
+            High price data
+        prices_low : pandas.Series
+            Low price data
+        prices_close : pandas.Series
+            Close price data
+        window : int, optional
+            Window size, default 14
+            
+        Returns:
+        --------
+        pandas.Series
+            ATR values
+        """
+        # Get previous close
+        prev_close = prices_close.shift(1)
+        
+        # Calculate the three differences
+        tr1 = prices_high - prices_low  # High - Low
+        tr2 = abs(prices_high - prev_close)  # |High - Previous Close|
+        tr3 = abs(prices_low - prev_close)  # |Low - Previous Close|
+        
+        # True Range is the maximum of the three
+        tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+        
+        # Calculate ATR as simple moving average of True Range
+        atr = tr.rolling(window=window).mean()
+        
+        return atr
+    
+    def cci_indicator(self, prices, window=20):
         """
         Calculate Commodity Channel Index (CCI).
         
         Parameters:
         -----------
-        prices : pd.Series
+        prices : pandas.Series
             Price data
         window : int, optional
-            Rolling window size, defaults to config value
+            Window size, default 20
             
         Returns:
         --------
-        pd.Series
+        pandas.Series
             CCI values
         """
-        window = window if window is not None else self.config['cci_window']
-        constant = self.config['cci_constant']
-        upper_threshold = self.config['cci_upper_threshold']
-        lower_threshold = self.config['cci_lower_threshold']
+        # Calculate typical price
+        typical_price = prices
         
-        sma = prices.rolling(window=window).mean()
-        mad = (prices - sma).abs().rolling(window=window).mean()
-        cci = (prices - sma) / (constant * mad.replace(0, 1e-9))
-
-        prev_cci = cci.shift(1)
-        signals = pd.Series(0, index=cci.index)
-
-        cross_down = (prev_cci >= lower_threshold) & (cci < lower_threshold)
-        signals.loc[cross_down] = 1 
-
-        cross_up = (prev_cci <= upper_threshold) & (cci > upper_threshold)
-        signals.loc[cross_up] = -1 
+        # Calculate simple moving average of typical price
+        sma_tp = self.sma_indicator(typical_price, window)
         
-        return cci.fillna(0.0)
+        # Calculate mean deviation
+        mean_deviation = typical_price.rolling(window).apply(lambda x: np.abs(x - x.mean()).mean())
+        
+        # Calculate CCI
+        # Constant 0.015 is by definition of CCI
+        cci = (typical_price - sma_tp) / (0.015 * mean_deviation)
+        
+        return cci
+    
+    def momentum_indicator(self, prices, period=10):
+        """
+        Calculate Momentum.
+        
+        Parameters:
+        -----------
+        prices : pandas.Series
+            Price data
+        period : int, optional
+            Period for momentum calculation, default 10
+            
+        Returns:
+        --------
+        pandas.Series
+            Momentum values
+        """
+        # Momentum is current price - price 'period' days ago
+        return prices - prices.shift(period)
+    
+    def obv_indicator(self, prices, volume):
+        """
+        Calculate On-Balance Volume (OBV).
+        
+        Parameters:
+        -----------
+        prices : pandas.Series
+            Price data
+        volume : pandas.Series
+            Volume data
+            
+        Returns:
+        --------
+        pandas.Series
+            OBV values
+        """
+        # Calculate price changes
+        price_diff = prices.diff()
+        
+        # Create direction series
+        direction = pd.Series(0, index=price_diff.index)
+        direction[price_diff > 0] = 1
+        direction[price_diff < 0] = -1
+        
+        # Calculate OBV
+        obv = (direction * volume).cumsum()
+        
+        return obv
