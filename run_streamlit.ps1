@@ -1,24 +1,30 @@
 # PowerShell script to run the Streamlit application
 Write-Host "Starting TradingStrategist application..." -ForegroundColor Green
 
-# Get the Conda installation path
-$condaPath = "$env:USERPROFILE\.conda"
+# Get the Conda installation path - checking both Miniconda and Anaconda possible locations
+$condaPaths = @(
+    "$env:USERPROFILE\miniconda3",
+    "$env:USERPROFILE\Anaconda3",
+    "$env:USERPROFILE\.conda",
+    "C:\ProgramData\Miniconda3",
+    "C:\ProgramData\Anaconda3",
+    "$env:LOCALAPPDATA\Continuum\miniconda3",
+    "$env:LOCALAPPDATA\Continuum\anaconda3"
+)
 
-# Check if conda is installed in the expected location
-if (-Not (Test-Path "$condaPath")) {
-    # Try alternate Miniconda location
-    $condaPath = "$env:USERPROFILE\Miniconda3"
-    if (-Not (Test-Path "$condaPath")) {
-        # Try Anaconda location
-        $condaPath = "$env:USERPROFILE\Anaconda3"
-        if (-Not (Test-Path "$condaPath")) {
-            Write-Host "Conda installation not found. Please install Conda or manually activate your environment before running this script." -ForegroundColor Red
-            exit 1
-        }
+$condaPath = $null
+foreach ($path in $condaPaths) {
+    if (Test-Path $path) {
+        $condaPath = $path
+        Write-Host "Conda found at $condaPath" -ForegroundColor Green
+        break
     }
 }
 
-Write-Host "Conda found at $condaPath" -ForegroundColor Green
+if ($null -eq $condaPath) {
+    Write-Host "Conda installation not found. Please install Conda or manually activate your environment before running this script." -ForegroundColor Red
+    exit 1
+}
 
 # Find conda executable - it could be in different locations depending on the installation
 $condaExe = $null
