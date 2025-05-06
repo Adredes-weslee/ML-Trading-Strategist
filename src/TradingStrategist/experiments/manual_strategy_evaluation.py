@@ -288,9 +288,24 @@ def run_evaluation_from_config(config_path):
     commission = trading_config.get('commission', 9.95)
     impact = trading_config.get('impact', 0.005)
     
-    # Get date ranges - handle flexible date format (support both direct and in/out-sample)
-    if 'in_sample' in config['data']:
-        # Use in/out sample format
+    # Get date ranges - handle multiple possible date format structures
+    # We now support three formats:
+    # 1. data.training / data.testing (new standardized format)
+    # 2. data.in_sample / data.out_sample (old format)
+    # 3. data.start_date / data.end_date (direct format)
+    
+    if 'training' in config['data']:
+        # Use new standardized format
+        in_sample_start = dt.datetime.strptime(config['data']['training']['start_date'], '%Y-%m-%d')
+        in_sample_end = dt.datetime.strptime(config['data']['training']['end_date'], '%Y-%m-%d')
+        
+        # Check for testing period
+        run_out_of_sample = 'testing' in config['data']
+        if run_out_of_sample:
+            out_sample_start = dt.datetime.strptime(config['data']['testing']['start_date'], '%Y-%m-%d')
+            out_sample_end = dt.datetime.strptime(config['data']['testing']['end_date'], '%Y-%m-%d')
+    elif 'in_sample' in config['data']:
+        # Use old in/out sample format
         in_sample_start = dt.datetime.strptime(config['data']['in_sample']['start_date'], '%Y-%m-%d')
         in_sample_end = dt.datetime.strptime(config['data']['in_sample']['end_date'], '%Y-%m-%d')
         
@@ -299,11 +314,13 @@ def run_evaluation_from_config(config_path):
         if run_out_of_sample:
             out_sample_start = dt.datetime.strptime(config['data']['out_sample']['start_date'], '%Y-%m-%d')
             out_sample_end = dt.datetime.strptime(config['data']['out_sample']['end_date'], '%Y-%m-%d')
-    else:
+    elif 'start_date' in config['data']:
         # Use direct date format
         in_sample_start = dt.datetime.strptime(config['data']['start_date'], '%Y-%m-%d')
         in_sample_end = dt.datetime.strptime(config['data']['end_date'], '%Y-%m-%d')
         run_out_of_sample = False
+    else:
+        raise ValueError("Could not find date configuration in config file. Ensure 'data' section contains either 'training'/'testing', 'in_sample'/'out_sample', or direct 'start_date'/'end_date' entries.")
     
     # Get output file prefix
     output_prefix = config['experiment']['output_prefix']
