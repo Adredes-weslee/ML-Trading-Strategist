@@ -18,8 +18,8 @@ portfolio:
   starting_value: 100000
   max_positions: 1000  # Configurable position size for benchmark
 
-# Changed from strategy_learner to dt_strategy for consistency  
-dt_strategy:
+# Updated to tree_strategy_learner for consistency
+tree_strategy_learner:
   window_size: 20
   rsi_window: 14
   stoch_window: 14

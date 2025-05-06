@@ -15,7 +15,7 @@ data:
 portfolio:
   starting_value: 100000
 
-dt_strategy:
+tree_strategy_learner:
   # Technical indicator parameters
   window_size: 20
   rsi_window: 14
@@ -46,7 +46,7 @@ trading:
 # Explicitly list which models to evaluate
 models:
   - manual
-  - strategy_learner
+  - tree_strategy_learner
 
 visualization:
   include_benchmark: true  # Include buy & hold benchmark

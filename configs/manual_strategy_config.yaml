@@ -7,11 +7,11 @@ experiment:
 
 data:
   symbol: "JPM"
-  # In-sample and out-of-sample periods for backtesting
-  in_sample:
+  # Standardized date range terminology to match other configs
+  training:
     start_date: "2008-01-01"
     end_date: "2009-12-31"
-  out_sample:
+  testing:
     start_date: "2010-01-01"
     end_date: "2011-12-31"
 

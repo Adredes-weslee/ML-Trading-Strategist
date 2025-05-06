@@ -20,19 +20,37 @@ models:
   - q_strategy_learner  # Only evaluate Q-strategy
   - manual              # Include manual strategy for comparison
 
-q_strategy:
+q_strategy_learner:
   # Technical indicator parameters
   indicator_bins: 10
   window_size: 20
   rsi_window: 14
+  stoch_window: 14
+  cci_window: 20
   position_size: 1000
   max_iterations: 100
+  
+  # Indicator selection flags
+  use_bb: true
+  use_rsi: true
+  use_macd: true
+  use_stoch: false
+  use_cci: false
+  
+  # Momentum periods
+  momentum_periods: [3, 5, 10]
   
   # Indicator ranges
   bb_range: [-2.0, 2.0]
   rsi_range: [0.0, 1.0]
   macd_range: [-1.0, 1.0]
+  stoch_range: [0.0, 1.0]
+  cci_range: [-2.0, 2.0]
+  
+  # Normalization factors
   rsi_norm: 100.0
+  stoch_norm: 100.0
+  cci_norm: 200.0
   
   # Convergence parameters
   min_iterations: 20
