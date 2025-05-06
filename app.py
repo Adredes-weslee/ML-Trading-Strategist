@@ -8,6 +8,31 @@ development and backtesting.
 
 import os
 import sys
+import subprocess
+
+# Install required packages at runtime if they're not available
+required_packages = ["streamlit", "pandas", "numpy", "matplotlib", "pyyaml"]
+
+def ensure_packages_installed():
+    """Ensure all required packages are installed."""
+    import importlib
+    
+    packages_to_install = []
+    for package in required_packages:
+        try:
+            importlib.import_module(package)
+        except ImportError:
+            packages_to_install.append(package)
+    
+    if packages_to_install:
+        print(f"Installing missing packages: {', '.join(packages_to_install)}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install"] + packages_to_install)
+        print("Installation complete!")
+
+# Ensure packages are installed before importing them
+ensure_packages_installed()
+
+# Now import all required packages
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -23,12 +48,17 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 # Now import from the project with the standardized import pattern
-from src.TradingStrategist.models.ManualStrategy import ManualStrategy
-from src.TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
-from src.TradingStrategist.models.QStrategyLearner import QStrategyLearner
-from src.TradingStrategist.data.loader import get_data
-from src.TradingStrategist.simulation.market_sim import compute_portvals, compute_portfolio_stats
-from src.TradingStrategist.utils.helpers import load_config
+try:
+    from src.TradingStrategist.models.ManualStrategy import ManualStrategy
+    from src.TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
+    from src.TradingStrategist.models.QStrategyLearner import QStrategyLearner
+    from src.TradingStrategist.data.loader import get_data
+    from src.TradingStrategist.simulation.market_sim import compute_portvals, compute_portfolio_stats
+    from src.TradingStrategist.utils.helpers import load_config
+except ImportError as e:
+    st.error(f"Error importing project modules: {str(e)}")
+    st.info("Make sure all required project dependencies are installed.")
+    st.stop()
 
 # Configure the page
 st.set_page_config(
@@ -440,6 +470,11 @@ with col1:
 with col2:
     train_end = st.date_input("Training End Date", default_train_end, min_value=min_date, max_value=max_date)
     test_end = st.date_input("Testing End Date", default_test_end, min_value=min_date, max_value=max_date)
+
+train_start = dt.datetime.combine(train_start, dt.time())
+train_end = dt.datetime.combine(train_end, dt.time())
+test_start = dt.datetime.combine(test_start, dt.time())
+test_end = dt.datetime.combine(test_end, dt.time())
 
 # Portfolio settings
 st.sidebar.subheader("Portfolio Settings")
