@@ -83,8 +83,22 @@ class RTLearner:
             # Return a leaf node (feature = -1, split = mean of y values)
             return np.array([[-1, np.mean(data_y), -1, -1]])
         
+        # Improved check for identical feature values across all data points
+        feature_variance = np.var(data_x, axis=0)
+        if np.all(feature_variance < 1e-8):  # All features are essentially constant
+            if self.verbose:
+                print("Warning: All features have the same value. Creating leaf node.")
+            return np.array([[-1, np.mean(data_y), -1, -1]])  # Leaf node
+            
         # Choose a random feature to split on
-        feature = np.random.randint(data_x.shape[1])
+        # Avoid features with zero variance (all values the same)
+        valid_features = np.where(feature_variance > 1e-8)[0]
+        if len(valid_features) == 0:
+            # If all features have the same values, create a leaf node
+            return np.array([[-1, np.mean(data_y), -1, -1]])
+            
+        # Choose from valid features only
+        feature = np.random.choice(valid_features)
         
         # Find two random distinct values if possible, or use median
         unique_values = np.unique(data_x[:, feature])
@@ -94,7 +108,8 @@ class RTLearner:
             split_val = np.mean([unique_values[sample_indices[0]], unique_values[sample_indices[1]]])
         else:
             # Only one unique value, can't split on this feature
-            return np.array([[-1, np.mean(data_y), -1, -1]])  # Leaf node
+            # Return a leaf node
+            return np.array([[-1, np.mean(data_y), -1, -1]])
         
         # Split the data
         left_mask = data_x[:, feature] <= split_val

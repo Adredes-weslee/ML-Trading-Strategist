@@ -8,10 +8,10 @@ as features and a bagged random tree ensemble for learning and prediction.
 import datetime as dt
 import pandas as pd
 import numpy as np
-from TradingStrategist.models.BagLearner import BagLearner
-from TradingStrategist.models.RTLearner import RTLearner
-from TradingStrategist.data.loader import get_data
-from TradingStrategist.indicators.technical import Indicators
+from .BagLearner import BagLearner
+from .RTLearner import RTLearner
+from ..data.loader import get_data
+from ..indicators.technical import Indicators
 
 
 class TreeStrategyLearner:
@@ -122,9 +122,15 @@ class TreeStrategyLearner:
         bb = self.indicators.bollinger_indicator(price_series, window=self.window_size)
         rsi = self.indicators.rsi_indicator(price_series, window=self.rsi_window) / self.rsi_norm
         
-        # Fix: Properly handle the MACD tuple return value
-        macd_line, signal_line = self.indicators.macd_indicator(price_series)
-        macd_hist = macd_line - signal_line  # MACD histogram is the difference
+        # Get MACD and properly extract the histogram
+        macd_result = self.indicators.macd_indicator(price_series)
+        # Check if the result is a tuple (standard implementation) or already the histogram
+        if isinstance(macd_result, tuple):
+            macd_line, signal_line = macd_result
+            macd_hist = macd_line - signal_line  # MACD histogram is the difference
+        else:
+            # If already processed as a single value
+            macd_hist = macd_result
         
         stoch = self.indicators.stoch_indicator(price_series, window=self.stoch_window) / self.stoch_norm
         cci = self.indicators.cci_indicator(price_series, window=self.cci_window) / self.cci_norm
@@ -133,7 +139,7 @@ class TreeStrategyLearner:
         features = pd.DataFrame(index=prices.index)
         features['BB'] = bb
         features['RSI'] = rsi  
-        features['MACD'] = macd_hist  # Fix: Use the MACD histogram
+        features['MACD'] = macd_hist  # Use the MACD histogram
         features['Stoch'] = stoch
         features['CCI'] = cci
         
@@ -194,13 +200,77 @@ class TreeStrategyLearner:
         sv : int, optional
             Starting value of portfolio, default 10000
         """
+        # Input validation
+        if not isinstance(symbol, str) or not symbol:
+            raise ValueError("Symbol must be a non-empty string")
+            
+        if not isinstance(sd, dt.datetime) or not isinstance(ed, dt.datetime):
+            raise ValueError("Start and end dates must be datetime objects")
+            
+        if ed <= sd:
+            raise ValueError("End date must be after start date")
+            
+        if not isinstance(sv, (int, float)) or sv <= 0:
+            raise ValueError("Starting value must be a positive number")
+            
+        # Parameter validation
+        if self.window_size <= 0:
+            raise ValueError("Window size must be positive")
+            
+        if self.rsi_window <= 0:
+            raise ValueError("RSI window must be positive")
+            
+        if self.stoch_window <= 0:
+            raise ValueError("Stochastic window must be positive")
+            
+        if self.cci_window <= 0:
+            raise ValueError("CCI window must be positive")
+            
+        if self.leaf_size <= 0:
+            raise ValueError("Leaf size must be positive")
+            
+        if self.bags <= 0:
+            raise ValueError("Number of bags must be positive")
+            
+        if self.position_size <= 0:
+            raise ValueError("Position size must be positive")
+            
+        if not all(period > 0 for period in self.momentum_periods):
+            raise ValueError("Momentum periods must be positive")
+            
+        # Validate that momentum periods are sorted to avoid inconsistencies
+        if sorted(self.momentum_periods) != self.momentum_periods:
+            if self.verbose:
+                print("Warning: Momentum periods were not in ascending order. Sorting automatically.")
+            self.momentum_periods = sorted(self.momentum_periods)
+            
+        # Calculate minimum data length needed based on indicators
+        min_data_length = max(
+            self.window_size,
+            self.rsi_window,
+            self.stoch_window,
+            self.cci_window,
+            max(self.momentum_periods) if self.momentum_periods else 0,
+        ) + self.prediction_days + 10  # Extra buffer
+        
         # Get price data
         dates = pd.date_range(sd, ed)
         prices_all = get_data([symbol], dates, addSPY=True)
         prices = prices_all[[symbol]].copy()  # Just the symbol we're interested in
         
+        if len(prices) < min_data_length:
+            raise ValueError(f"Insufficient data: at least {min_data_length} data points required, but only {len(prices)} provided")
+            
         if self.verbose:
             print(f"Training on {len(prices)} days of data")
+        
+        # Check for missing or invalid values in the price data
+        if prices.isna().any().any():
+            if self.verbose:
+                print("Warning: Price data contains NaN values. These will be filled using forward-fill method.")
+            prices = prices.ffill().bfill()
+            if prices.isna().any().any():
+                raise ValueError("Price data contains NaN values that couldn't be filled")
         
         # Compute indicators for features
         features = self._compute_indicators(prices)
@@ -212,6 +282,9 @@ class TreeStrategyLearner:
         valid_indices = ~(features.isna().any(axis=1) | labels.isna())
         features = features[valid_indices]
         labels = labels[valid_indices]
+        
+        if len(features) < 10:  # Arbitrary minimum sample threshold
+            raise ValueError(f"Too few valid training samples: {len(features)}. Check your data quality.")
         
         if self.verbose:
             print(f"Using {features.shape[1]} features and {len(features)} training samples")

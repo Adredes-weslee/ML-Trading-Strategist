@@ -26,6 +26,8 @@ class QLearner:
         gamma=0.9,
         rar=0.5,
         radr=0.99,
+        alpha_decay=0.999,  # Added learning rate decay parameter
+        min_alpha=0.01,     # Added minimum learning rate parameter
         dyna=0,
         verbose=False,
     ):
@@ -46,6 +48,10 @@ class QLearner:
             Random action rate (0-1), default 0.5
         radr : float, optional
             Random action decay rate (0-1), default 0.99
+        alpha_decay : float, optional
+            Learning rate decay factor (0-1), default 0.999
+        min_alpha : float, optional
+            Minimum learning rate floor, default 0.01
         dyna : int, optional
             Number of Dyna-Q planning updates per step, default 0
         verbose : bool, optional
@@ -55,10 +61,17 @@ class QLearner:
         self.num_actions = num_actions
         self.num_states = num_states
         self.alpha = alpha
+        self.initial_alpha = alpha  # Store initial alpha for reference
+        self.alpha_decay = alpha_decay
+        self.min_alpha = min_alpha
         self.gamma = gamma
         self.rar = rar
         self.radr = radr
         self.dyna = dyna
+        
+        # Track learning progress
+        self.episode_count = 0
+        self.step_count = 0
 
         # Initialize Q-table and model for Dyna-Q
         self.Q = np.zeros((num_states, num_actions))
@@ -128,6 +141,9 @@ class QLearner:
 
         # Decay random action rate
         self.rar *= self.radr
+
+        # Decay learning rate
+        self.alpha = max(self.min_alpha, self.alpha * self.alpha_decay)
 
         # Perform Dyna-Q planning updates if enabled
         for _ in range(self.dyna):

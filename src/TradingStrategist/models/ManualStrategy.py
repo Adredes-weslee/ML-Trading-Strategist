@@ -6,9 +6,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
-from TradingStrategist.indicators.technical import Indicators
-from TradingStrategist.data.loader import get_data
-from TradingStrategist.utils.helpers import get_output_path
+from ..indicators.technical import Indicators
+from ..data.loader import get_data
+from ..utils.helpers import get_output_path
 import os
 
 class ManualStrategy:
@@ -161,6 +161,30 @@ class ManualStrategy:
         dict
             Dictionary of computed indicators
         """
+        # Input validation
+        if prices is None or len(prices) == 0:
+            raise ValueError("Price data cannot be None or empty")
+            
+        # Check for minimum required data length
+        min_length = max(
+            self.thresholds['window_size'],
+            self.thresholds['rsi_window'],
+            self.thresholds['stoch_window'],
+            self.thresholds['cci_window']
+        ) + 10  # Extra buffer as required by indicators
+        
+        if len(prices) < min_length:
+            raise ValueError(f"Insufficient price data: {len(prices)} points provided, but at least {min_length} required")
+        
+        # Check for NaN values in input data
+        if prices.isna().any():
+            print("Warning: Input price data contains NaN values. These will be filled using forward-fill method.")
+            prices = prices.ffill().bfill()  # Forward-fill then backward-fill
+            
+            # If still contains NaN values, raise an error
+            if prices.isna().any():
+                raise ValueError("Price data contains NaN values that couldn't be filled")
+        
         window_size = self.thresholds['window_size']
         rsi_window = self.thresholds['rsi_window']
         stoch_window = self.thresholds['stoch_window']
@@ -168,21 +192,39 @@ class ManualStrategy:
         
         indicators = {}
         
-        # Compute Bollinger Bands
-        indicators['bollinger'] = self.indicators.bollinger_percent_indicator(prices, window=window_size)
-        
-        # Compute RSI
-        indicators['rsi'] = self.indicators.rsi_indicator(prices, window=rsi_window)
-        
-        # Compute MACD
-        macd, signal = self.indicators.macd_indicator(prices)
-        indicators['macd'] = macd - signal  # MACD histogram
-        
-        # Compute Stochastic Oscillator - Fix the method name to match what's in Indicators class
-        indicators['stoch'] = self.indicators.stoch_indicator(prices, window=stoch_window)
-        
-        # Compute CCI
-        indicators['cci'] = self.indicators.cci_indicator(prices, window=cci_window)
+        try:
+            # Compute Bollinger Bands
+            indicators['bollinger'] = self.indicators.bollinger_percent_indicator(prices, window=window_size)
+            
+            # Compute RSI
+            indicators['rsi'] = self.indicators.rsi_indicator(prices, window=rsi_window)
+            
+            # Compute MACD
+            macd, signal = self.indicators.macd_indicator(prices)
+            indicators['macd'] = macd - signal  # MACD histogram
+            
+            # Compute Stochastic Oscillator
+            indicators['stoch'] = self.indicators.stoch_indicator(prices, window=stoch_window)
+            
+            # Compute CCI
+            indicators['cci'] = self.indicators.cci_indicator(prices, window=cci_window)
+            
+            # Handle NaN values in computed indicators
+            for indicator_name, indicator_values in indicators.items():
+                if indicator_values.isna().any():
+                    if self.verbose:
+                        print(f"Warning: {indicator_name} contains NaN values that will be filled")
+                    # Forward-fill then backward-fill
+                    indicators[indicator_name] = indicator_values.ffill().bfill()
+                    
+                    # If still contains NaN values, use zero as a last resort
+                    if indicators[indicator_name].isna().any():
+                        if self.verbose:
+                            print(f"Warning: {indicator_name} still contains NaN values after filling, using 0")
+                        indicators[indicator_name] = indicators[indicator_name].fillna(0)
+            
+        except Exception as e:
+            raise RuntimeError(f"Error computing technical indicators: {str(e)}")
         
         return indicators
     

@@ -8,9 +8,9 @@ make trading decisions based on market states derived from technical indicators.
 import datetime as dt
 import pandas as pd
 import numpy as np
-from TradingStrategist.models.QLearner import QLearner
-from TradingStrategist.data.loader import get_data
-from TradingStrategist.indicators.technical import Indicators
+from .QLearner import QLearner
+from ..data.loader import get_data
+from ..indicators.technical import Indicators
 
 
 class QStrategyLearner:
@@ -26,13 +26,28 @@ class QStrategyLearner:
                  indicator_bins=10,
                  window_size=20,
                  rsi_window=14,
+                 stoch_window=14,
+                 cci_window=20,
                  position_size=1000,
                  max_iterations=100,
                  # Indicator ranges
                  bb_range=(-2.0, 2.0),
                  rsi_range=(0.0, 1.0),
                  macd_range=(-1.0, 1.0),
+                 stoch_range=(0.0, 1.0),
+                 cci_range=(-2.0, 2.0),
+                 # Normalization factors
                  rsi_norm=100.0,
+                 stoch_norm=100.0,
+                 cci_norm=200.0,
+                 # Indicator selection flags
+                 use_bb=True,
+                 use_rsi=True,
+                 use_macd=True,
+                 use_stoch=False,
+                 use_cci=False,
+                 # Momentum parameters
+                 momentum_periods=None,
                  # Convergence parameters
                  min_iterations=20,
                  convergence_threshold=0.1,
@@ -60,6 +75,10 @@ class QStrategyLearner:
             Window size for technical indicators, default 20
         rsi_window : int, optional
             Window size for RSI calculation, default 14
+        stoch_window : int, optional
+            Window size for Stochastic oscillator, default 14
+        cci_window : int, optional
+            Window size for CCI calculation, default 20
         position_size : int, optional
             Number of shares for positions, default 1000
         max_iterations : int, optional
@@ -70,8 +89,28 @@ class QStrategyLearner:
             Range for RSI discretization, default (0.0, 1.0)
         macd_range : tuple, optional
             Range for MACD discretization, default (-1.0, 1.0)
+        stoch_range : tuple, optional
+            Range for Stochastic oscillator discretization, default (0.0, 1.0)
+        cci_range : tuple, optional
+            Range for CCI discretization, default (-2.0, 2.0)
         rsi_norm : float, optional
             Normalization factor for RSI, default 100.0
+        stoch_norm : float, optional
+            Normalization factor for Stochastic Oscillator, default 100.0
+        cci_norm : float, optional
+            Normalization factor for CCI, default 200.0
+        use_bb : bool, optional
+            Whether to use Bollinger Bands indicator, default True
+        use_rsi : bool, optional
+            Whether to use RSI indicator, default True
+        use_macd : bool, optional
+            Whether to use MACD indicator, default True
+        use_stoch : bool, optional
+            Whether to use Stochastic oscillator, default False
+        use_cci : bool, optional
+            Whether to use CCI indicator, default False
+        momentum_periods : list, optional
+            List of periods for momentum calculations, default None
         min_iterations : int, optional
             Minimum iterations before checking convergence, default 20
         convergence_threshold : float, optional
@@ -89,6 +128,29 @@ class QStrategyLearner:
         indicators_config : dict, optional
             Configuration dictionary for technical indicators
         """
+        # Input validation
+        if not isinstance(verbose, bool):
+            raise ValueError("verbose must be a boolean")
+        if not isinstance(impact, (int, float)) or impact < 0:
+            raise ValueError("impact must be a non-negative number")
+        if not isinstance(commission, (int, float)) or commission < 0:
+            raise ValueError("commission must be a non-negative number")
+        if not isinstance(indicator_bins, int) or indicator_bins <= 0:
+            raise ValueError("indicator_bins must be a positive integer")
+        if not isinstance(window_size, int) or window_size <= 0:
+            raise ValueError("window_size must be a positive integer")
+        if not isinstance(rsi_window, int) or rsi_window <= 0:
+            raise ValueError("rsi_window must be a positive integer")
+        if not isinstance(stoch_window, int) or stoch_window <= 0:
+            raise ValueError("stoch_window must be a positive integer")
+        if not isinstance(cci_window, int) or cci_window <= 0:
+            raise ValueError("cci_window must be a positive integer")
+        if not isinstance(position_size, int) or position_size <= 0:
+            raise ValueError("position_size must be a positive integer")
+        if not isinstance(max_iterations, int) or max_iterations <= 0:
+            raise ValueError("max_iterations must be a positive integer")
+        
+        # Initialize basic parameters
         self.verbose = verbose
         self.impact = impact
         self.commission = commission
@@ -101,6 +163,8 @@ class QStrategyLearner:
         self.indicator_bins = indicator_bins
         self.window_size = window_size
         self.rsi_window = rsi_window
+        self.stoch_window = stoch_window
+        self.cci_window = cci_window
         self.position_size = position_size
         self.max_iterations = max_iterations
         
@@ -108,7 +172,27 @@ class QStrategyLearner:
         self.bb_range = bb_range
         self.rsi_range = rsi_range
         self.macd_range = macd_range
+        self.stoch_range = stoch_range
+        self.cci_range = cci_range
+        
+        # Store normalization factors
         self.rsi_norm = rsi_norm
+        self.stoch_norm = stoch_norm
+        self.cci_norm = cci_norm
+        
+        # Store indicator selection flags
+        self.use_bb = use_bb
+        self.use_rsi = use_rsi
+        self.use_macd = use_macd
+        self.use_stoch = use_stoch
+        self.use_cci = use_cci
+        
+        # Validate that at least one indicator is selected
+        if not (use_bb or use_rsi or use_macd or use_stoch or use_cci):
+            raise ValueError("At least one indicator must be selected")
+            
+        # Store momentum parameters
+        self.momentum_periods = momentum_periods if momentum_periods is not None else []
         
         # Store convergence parameters
         self.min_iterations = min_iterations
@@ -177,18 +261,50 @@ class QStrategyLearner:
             State index
         """
         # Get indicator values for this timestamp
-        bb_value = indicators['bollinger'].loc[timestamp]
-        rsi_value = indicators['rsi'].loc[timestamp] / self.rsi_norm  # Use configurable norm
-        macd_value = indicators['macd'].loc[timestamp]
+        state_components = []
         
-        # Use configurable ranges for discretization
-        bb_bin = self._discretize(bb_value, self.bb_range[0], self.bb_range[1], self.indicator_bins)
-        rsi_bin = self._discretize(rsi_value, self.rsi_range[0], self.rsi_range[1], self.indicator_bins)
-        macd_bin = self._discretize(macd_value, self.macd_range[0], self.macd_range[1], self.indicator_bins)
+        # Add only the selected indicators
+        if self.use_bb and 'bollinger' in indicators:
+            bb_value = indicators['bollinger'].loc[timestamp]
+            bb_bin = self._discretize(bb_value, self.bb_range[0], self.bb_range[1], self.indicator_bins)
+            state_components.append(bb_bin)
+            
+        if self.use_rsi and 'rsi' in indicators:
+            rsi_value = indicators['rsi'].loc[timestamp] / self.rsi_norm
+            rsi_bin = self._discretize(rsi_value, self.rsi_range[0], self.rsi_range[1], self.indicator_bins)
+            state_components.append(rsi_bin)
+            
+        if self.use_macd and 'macd' in indicators:
+            macd_value = indicators['macd'].loc[timestamp]
+            macd_bin = self._discretize(macd_value, self.macd_range[0], self.macd_range[1], self.indicator_bins)
+            state_components.append(macd_bin)
+            
+        if self.use_stoch and 'stoch' in indicators:
+            stoch_value = indicators['stoch'].loc[timestamp] / self.stoch_norm
+            stoch_bin = self._discretize(stoch_value, self.stoch_range[0], self.stoch_range[1], self.indicator_bins)
+            state_components.append(stoch_bin)
+            
+        if self.use_cci and 'cci' in indicators:
+            cci_value = indicators['cci'].loc[timestamp] / self.cci_norm
+            cci_bin = self._discretize(cci_value, self.cci_range[0], self.cci_range[1], self.indicator_bins)
+            state_components.append(cci_bin)
         
-        # Combine bins into a single state index
-        state = bb_bin * self.indicator_bins**2 + rsi_bin * self.indicator_bins + macd_bin
+        # Add momentum indicators if specified
+        for i, period in enumerate(self.momentum_periods):
+            if f'momentum_{period}' in indicators:
+                momentum_value = indicators[f'momentum_{period}'].loc[timestamp]
+                momentum_bin = self._discretize(momentum_value, -0.1, 0.1, self.indicator_bins)
+                state_components.append(momentum_bin)
         
+        # Combine the state components into a single state index
+        if not state_components:
+            return 0  # Default state if no components are available
+            
+        # Calculate the state index by treating the components as a base-N number
+        state = 0
+        for i, component in enumerate(reversed(state_components)):
+            state += component * (self.indicator_bins ** i)
+            
         return state
         
     def _calculate_reward(self, daily_returns, action, prev_action):
@@ -242,18 +358,37 @@ class QStrategyLearner:
             Dictionary of computed indicators
         """
         price_series = prices[symbol]
+        indicators = {'daily_returns': price_series.pct_change()}
         
-        # Fix: Properly handle the MACD tuple return value
-        macd_line, signal_line = self.indicators.macd_indicator(price_series)
-        macd_hist = macd_line - signal_line  # MACD histogram is the difference
-        
-        indicators = {
-            'bollinger': self.indicators.bollinger_indicator(price_series, window=self.window_size),
-            'rsi': self.indicators.rsi_indicator(price_series, window=self.rsi_window),
-            'macd': macd_hist,  # Store the MACD histogram instead of the tuple
-            'daily_returns': price_series.pct_change()
-        }
-        
+        # Compute selected indicators
+        if self.use_bb:
+            indicators['bollinger'] = self.indicators.bollinger_indicator(price_series, window=self.window_size)
+            
+        if self.use_rsi:
+            indicators['rsi'] = self.indicators.rsi_indicator(price_series, window=self.rsi_window)
+            
+        if self.use_macd:
+            # Get MACD and properly extract the histogram
+            macd_result = self.indicators.macd_indicator(price_series)
+            # Check if the result is a tuple (standard implementation) or already the histogram
+            if isinstance(macd_result, tuple):
+                macd_line, signal_line = macd_result
+                macd_hist = macd_line - signal_line  # MACD histogram is the difference
+            else:
+                # If already processed as a single value
+                macd_hist = macd_result
+            indicators['macd'] = macd_hist
+            
+        if self.use_stoch:
+            indicators['stoch'] = self.indicators.stoch_indicator(price_series, window=self.stoch_window)
+            
+        if self.use_cci:
+            indicators['cci'] = self.indicators.cci_indicator(price_series, window=self.cci_window)
+            
+        # Add momentum indicators if specified
+        for period in self.momentum_periods:
+            indicators[f'momentum_{period}'] = price_series.pct_change(period)
+            
         return indicators
         
     def addEvidence(self, symbol="JPM", sd=dt.datetime(2008, 1, 1), 
@@ -272,6 +407,16 @@ class QStrategyLearner:
         sv : int, optional
             Starting value of portfolio, default 10000
         """
+        # Input validation for parameters
+        if not isinstance(symbol, str) or not symbol:
+            raise ValueError("Symbol must be a non-empty string")
+        if not isinstance(sd, dt.datetime) or not isinstance(ed, dt.datetime):
+            raise ValueError("Start and end dates must be datetime objects")
+        if ed <= sd:
+            raise ValueError("End date must be after start date")
+        if not isinstance(sv, (int, float)) or sv <= 0:
+            raise ValueError("Starting value must be a positive number")
+            
         # Get price data
         dates = pd.date_range(sd, ed)
         prices_all = get_data([symbol], dates, addSPY=True)
@@ -284,8 +429,24 @@ class QStrategyLearner:
         indicators = self._compute_indicators(prices_all, symbol)
         daily_returns = indicators['daily_returns']
         
+        # Calculate number of active indicators
+        active_indicators_count = sum([
+            1 if self.use_bb else 0,
+            1 if self.use_rsi else 0,
+            1 if self.use_macd else 0,
+            1 if self.use_stoch else 0,
+            1 if self.use_cci else 0
+        ]) + len(self.momentum_periods)
+        
+        if active_indicators_count == 0:
+            raise ValueError("At least one indicator must be selected")
+        
         # Calculate total number of possible states
-        num_states = self.indicator_bins ** 3  # Three indicators
+        num_states = self.indicator_bins ** active_indicators_count
+        
+        if self.verbose:
+            print(f"Using {active_indicators_count} indicators with {self.indicator_bins} bins each")
+            print(f"Total possible states: {num_states}")
         
         # Initialize Q-Learner with parameters from config
         self.learner = QLearner(
@@ -414,3 +575,27 @@ class QStrategyLearner:
                 current_position = new_position
         
         return trades
+        
+    def get_used_indicators(self):
+        """
+        Get a list of indicators currently being used by the model.
+        
+        Returns:
+        --------
+        list
+            List of indicator names being used
+        """
+        indicators = []
+        if self.use_bb:
+            indicators.append("Bollinger Bands")
+        if self.use_rsi:
+            indicators.append("RSI")
+        if self.use_macd:
+            indicators.append("MACD")
+        if self.use_stoch:
+            indicators.append("Stochastic Oscillator")
+        if self.use_cci:
+            indicators.append("CCI")
+        for period in self.momentum_periods:
+            indicators.append(f"Momentum ({period} days)")
+        return indicators
