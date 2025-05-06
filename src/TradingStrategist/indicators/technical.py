@@ -82,6 +82,10 @@ class Indicators:
         pandas.Series
             Bollinger Band percentage indicator
         """
+        # Check for NaN values
+        if prices.isna().any():
+            prices = prices.ffill().bfill()  # Forward-fill then backward-fill
+            
         # Calculate SMA and standard deviation
         sma = self.sma_indicator(prices, window)
         rolling_std = prices.rolling(window=window).std()
@@ -91,7 +95,16 @@ class Indicators:
         lower_band = sma - (rolling_std * num_std)
         
         # Calculate (price - sma) / (upper_band - lower_band)
-        bb_pct = (prices - sma) / (upper_band - lower_band)
+        # Handle potential division by zero (when upper_band = lower_band)
+        band_width = upper_band - lower_band
+        # Replace zeros and very small values with a small constant to avoid division by zero
+        band_width = band_width.replace(0, 1e-6)
+        band_width[band_width < 1e-6] = 1e-6
+        
+        bb_pct = (prices - sma) / band_width
+        
+        # Handle remaining NaN values
+        bb_pct = bb_pct.fillna(0)
         
         return bb_pct
     
