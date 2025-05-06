@@ -16,16 +16,17 @@ import datetime as dt
 import yaml
 from pathlib import Path
 
-# Add the project root to the Python path
+# Add the src directory to the path so we can import from the module structure
 project_root = os.path.dirname(os.path.abspath(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+src_path = os.path.join(project_root, 'src')
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
-# Now import from the project
-from src.TradingStrategist.data.loader import get_data
+# Now import from the project with the standardized import pattern
 from src.TradingStrategist.models.ManualStrategy import ManualStrategy
 from src.TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
 from src.TradingStrategist.models.QStrategyLearner import QStrategyLearner
+from src.TradingStrategist.data.loader import get_data
 from src.TradingStrategist.simulation.market_sim import compute_portvals, compute_portfolio_stats
 from src.TradingStrategist.utils.helpers import load_config
 
@@ -36,6 +37,72 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Function to load configuration files
+def load_yaml_config(config_file):
+    """
+    Load configuration from a YAML file.
+    
+    Parameters:
+    -----------
+    config_file : str
+        Path to the configuration file
+        
+    Returns:
+    --------
+    dict
+        Configuration dictionary
+    """
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+        return config
+    except Exception as e:
+        st.error(f"Error loading configuration file {config_file}: {str(e)}")
+        return {}
+
+# Function to save configuration to YAML file
+def save_yaml_config(config, config_file):
+    """
+    Save configuration to a YAML file.
+    
+    Parameters:
+    -----------
+    config : dict
+        Configuration dictionary
+    config_file : str
+        Path to save the configuration file
+    """
+    try:
+        with open(config_file, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+        return True
+    except Exception as e:
+        st.error(f"Error saving configuration file {config_file}: {str(e)}")
+        return False
+
+# Load default configuration files
+@st.cache_data
+def load_default_configs():
+    """
+    Load all default configurations.
+    
+    Returns:
+    --------
+    dict
+        Dictionary containing all configurations
+    """
+    config_dir = os.path.join(project_root, 'configs')
+    
+    configs = {
+        'manual': load_yaml_config(os.path.join(config_dir, 'manual_strategy_config.yaml')),
+        'tree': load_yaml_config(os.path.join(config_dir, 'tree_strategy.yaml')),
+        'qlearn': load_yaml_config(os.path.join(config_dir, 'qstrategy.yaml')),
+        'data': load_yaml_config(os.path.join(config_dir, 'data.yaml')),
+        'market_sim': load_yaml_config(os.path.join(config_dir, 'market_sim.yaml'))
+    }
+    
+    return configs
 
 # Title and description
 st.title("📈 TradingStrategist")
@@ -52,6 +119,9 @@ st.markdown(
     - Compare performance across different approach types
     """
 )
+
+# Load configurations
+configs = load_default_configs()
 
 @st.cache_data
 def get_available_symbols():
@@ -213,7 +283,9 @@ def run_strategy(strategy_type, symbol, train_start_date, train_end_date,
             **{k: v for k, v in strategy_params.items() if k in [
                 'indicator_bins', 'window_size', 'rsi_window', 'position_size',
                 'max_iterations', 'learning_rate', 'discount_factor',
-                'random_action_rate', 'random_action_decay', 'dyna_iterations'
+                'random_action_rate', 'random_action_decay', 'dyna_iterations',
+                'use_bb', 'use_rsi', 'use_macd', 'use_stoch', 'use_cci',
+                'momentum_periods', 'convergence_threshold'
             ]}
         )
         
@@ -252,35 +324,146 @@ def run_strategy(strategy_type, symbol, train_start_date, train_end_date,
 # Sidebar for inputs
 st.sidebar.header("Strategy Settings")
 
+# Configuration management
+with st.sidebar.expander("Configuration Management"):
+    st.subheader("Configuration Options")
+    
+    # Load configuration option
+    st.write("Use configuration files to set default parameters.")
+    use_configs = st.checkbox("Use Configuration Files", value=True)
+    
+    # Save configuration option
+    if st.button("Save Current Settings"):
+        # Create configurations for saving
+        manual_config = configs['manual'].copy() if 'manual' in configs else {}
+        tree_config = configs['tree'].copy() if 'tree' in configs else {}
+        qlearn_config = configs['qlearn'].copy() if 'qlearn' in configs else {}
+        
+        # Update manual strategy config if it exists
+        if 'manual_strategy' in manual_config:
+            manual_config['manual_strategy'].update({
+                k: v for k, v in manual_params.items() if k in [
+                    'window_size', 'rsi_window', 'buy_threshold', 
+                    'sell_threshold', 'position_size'
+                ]
+            })
+        
+        # Update tree strategy config if it exists
+        if 'tree_strategy_learner' in tree_config:
+            tree_config['tree_strategy_learner'].update({
+                k: v for k, v in tree_params.items() if k in [
+                    'window_size', 'buy_threshold', 'sell_threshold',
+                    'prediction_days', 'leaf_size', 'bags', 'position_size'
+                ]
+            })
+        
+        # Update Q-learning strategy config if it exists
+        if 'q_strategy_learner' in qlearn_config:
+            qlearn_config['q_strategy_learner'].update({
+                k: v for k, v in q_params.items() if k in [
+                    'indicator_bins', 'window_size', 'rsi_window', 'stoch_window',
+                    'cci_window', 'position_size', 'max_iterations', 'learning_rate',
+                    'discount_factor', 'random_action_rate', 'random_action_decay',
+                    'dyna_iterations', 'convergence_threshold', 'use_bb', 'use_rsi',
+                    'use_macd', 'use_stoch', 'use_cci', 'momentum_periods'
+                ]
+            })
+        
+        # Save configurations
+        config_dir = os.path.join(project_root, 'configs')
+        
+        if 'manual_strategy' in manual_config:
+            success_manual = save_yaml_config(
+                manual_config, 
+                os.path.join(config_dir, 'manual_strategy_config.yaml')
+            )
+            
+        if 'tree_strategy_learner' in tree_config:
+            success_tree = save_yaml_config(
+                tree_config, 
+                os.path.join(config_dir, 'tree_strategy.yaml')
+            )
+            
+        if 'q_strategy_learner' in qlearn_config:
+            success_qlearn = save_yaml_config(
+                qlearn_config, 
+                os.path.join(config_dir, 'qstrategy.yaml')
+            )
+            
+        st.success("Settings saved successfully! Reload the page to use the new defaults.")
+
 # Get available symbols
 symbols = get_available_symbols()
 if not symbols:
     st.error("No stock data found in the data directory.")
     st.stop()
 
+# Get default symbol from config if available
+default_symbol = "JPM"  # Default in case config doesn't specify
+if use_configs and 'data' in configs and 'symbol' in configs['data']:
+    default_symbol = configs['data']['symbol']
+
 # Stock selection
-selected_symbol = st.sidebar.selectbox("Select Stock Symbol", symbols, index=symbols.index("JPM") if "JPM" in symbols else 0)
+selected_symbol = st.sidebar.selectbox("Select Stock Symbol", symbols, 
+                                      index=symbols.index(default_symbol) if default_symbol in symbols else 0)
 
 # Date range selection
 st.sidebar.subheader("Date Range")
 col1, col2 = st.sidebar.columns(2)
+
+# Default dates
+default_train_start = dt.datetime(2008, 1, 1)
+default_train_end = dt.datetime(2009, 12, 31)
+default_test_start = dt.datetime(2010, 1, 1)
+default_test_end = dt.datetime(2011, 12, 31)
+
+# Use dates from config if available and enabled
+if use_configs and 'data' in configs:
+    config_data = configs['data']
+    if 'training' in config_data:
+        if 'start_date' in config_data['training']:
+            default_train_start = dt.datetime.strptime(config_data['training']['start_date'], '%Y-%m-%d')
+        if 'end_date' in config_data['training']:
+            default_train_end = dt.datetime.strptime(config_data['training']['end_date'], '%Y-%m-%d')
+    if 'testing' in config_data:
+        if 'start_date' in config_data['testing']:
+            default_test_start = dt.datetime.strptime(config_data['testing']['start_date'], '%Y-%m-%d')
+        if 'end_date' in config_data['testing']:
+            default_test_end = dt.datetime.strptime(config_data['testing']['end_date'], '%Y-%m-%d')
+
 min_date = dt.datetime(2007, 1, 1)
 max_date = dt.datetime(2011, 12, 31)
 
 with col1:
-    train_start = st.date_input("Training Start Date", dt.datetime(2008, 1, 1), min_value=min_date, max_value=max_date)
-    test_start = st.date_input("Testing Start Date", dt.datetime(2010, 1, 1), min_value=min_date, max_value=max_date)
+    train_start = st.date_input("Training Start Date", default_train_start, min_value=min_date, max_value=max_date)
+    test_start = st.date_input("Testing Start Date", default_test_start, min_value=min_date, max_value=max_date)
 with col2:
-    train_end = st.date_input("Training End Date", dt.datetime(2009, 12, 31), min_value=min_date, max_value=max_date)
-    test_end = st.date_input("Testing End Date", dt.datetime(2011, 12, 31), min_value=min_date, max_value=max_date)
+    train_end = st.date_input("Training End Date", default_train_end, min_value=min_date, max_value=max_date)
+    test_end = st.date_input("Testing End Date", default_test_end, min_value=min_date, max_value=max_date)
 
 # Portfolio settings
 st.sidebar.subheader("Portfolio Settings")
-starting_value = st.sidebar.number_input("Starting Portfolio Value", min_value=1000, max_value=1000000, value=100000, step=10000)
-commission = st.sidebar.number_input("Commission per Trade ($)", min_value=0.0, max_value=50.0, value=9.95, step=0.5)
-impact = st.sidebar.number_input("Market Impact per Trade (%)", min_value=0.0, max_value=0.05, value=0.005, step=0.001, format="%.3f")
+default_starting_value = 100000
+default_commission = 9.95
+default_impact = 0.005
 
-# Strategy selection
+# Use portfolio settings from config if available
+if use_configs:
+    if 'portfolio' in configs.get('data', {}):
+        if 'starting_value' in configs['data']['portfolio']:
+            default_starting_value = configs['data']['portfolio']['starting_value']
+    
+    if 'trading' in configs.get('market_sim', {}):
+        if 'commission' in configs['market_sim']['trading']:
+            default_commission = configs['market_sim']['trading']['commission']
+        if 'impact' in configs['market_sim']['trading']:
+            default_impact = configs['market_sim']['trading']['impact']
+
+starting_value = st.sidebar.number_input("Starting Portfolio Value", min_value=1000, max_value=1000000, value=default_starting_value, step=10000)
+commission = st.sidebar.number_input("Commission per Trade ($)", min_value=0.0, max_value=50.0, value=default_commission, step=0.5)
+impact = st.sidebar.number_input("Market Impact per Trade (%)", min_value=0.0, max_value=0.05, value=default_impact, step=0.001, format="%.3f")
+
+# Strategy selection with standardized naming
 selected_strategies = st.sidebar.multiselect(
     "Select Strategies to Compare",
     ["Benchmark", "Manual Strategy", "Tree Strategy Learner", "Q-Strategy Learner"],
@@ -290,40 +473,168 @@ selected_strategies = st.sidebar.multiselect(
 # Advanced strategy parameters (collapsible sections)
 if "Manual Strategy" in selected_strategies:
     with st.sidebar.expander("Manual Strategy Parameters"):
+        # Get default values from config if available
+        default_manual_params = {
+            'window_size': 20,
+            'rsi_window': 14,
+            'buy_threshold': 0.02,
+            'sell_threshold': -0.02,
+            'position_size': 1000
+        }
+        
+        # Override with values from config if available and enabled
+        if use_configs and 'manual' in configs and 'manual_strategy' in configs['manual']:
+            conf_manual = configs['manual']['manual_strategy']
+            if 'window_size' in conf_manual:
+                default_manual_params['window_size'] = conf_manual['window_size']
+            if 'rsi_window' in conf_manual:
+                default_manual_params['rsi_window'] = conf_manual['rsi_window']
+            if 'buy_threshold' in conf_manual:
+                default_manual_params['buy_threshold'] = conf_manual['buy_threshold']
+            if 'sell_threshold' in conf_manual:
+                default_manual_params['sell_threshold'] = conf_manual['sell_threshold']
+            if 'position_size' in conf_manual:
+                default_manual_params['position_size'] = conf_manual['position_size']
+        
         manual_params = {
-            'window_size': st.number_input("Technical Indicator Window Size", min_value=5, max_value=50, value=20, key="manual_window"),
-            'rsi_window': st.number_input("RSI Window", min_value=5, max_value=30, value=14, key="manual_rsi"),
-            'buy_threshold': st.number_input("Buy Threshold", min_value=0.01, max_value=0.1, value=0.02, format="%.2f", key="manual_buy"),
-            'sell_threshold': st.number_input("Sell Threshold", min_value=-0.1, max_value=-0.01, value=-0.02, format="%.2f", key="manual_sell"),
-            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=1000, step=100, key="manual_pos")
+            'window_size': st.number_input("Technical Indicator Window Size", min_value=5, max_value=50, value=default_manual_params['window_size'], key="manual_window"),
+            'rsi_window': st.number_input("RSI Window", min_value=5, max_value=30, value=default_manual_params['rsi_window'], key="manual_rsi"),
+            'buy_threshold': st.number_input("Buy Threshold", min_value=0.01, max_value=0.1, value=default_manual_params['buy_threshold'], format="%.2f", key="manual_buy"),
+            'sell_threshold': st.number_input("Sell Threshold", min_value=-0.1, max_value=-0.01, value=default_manual_params['sell_threshold'], format="%.2f", key="manual_sell"),
+            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=default_manual_params['position_size'], step=100, key="manual_pos")
         }
 
 if "Tree Strategy Learner" in selected_strategies:
     with st.sidebar.expander("Tree Strategy Parameters"):
+        # Get default values from config if available
+        default_tree_params = {
+            'window_size': 20,
+            'buy_threshold': 0.02,
+            'sell_threshold': -0.02,
+            'prediction_days': 5,
+            'leaf_size': 5,
+            'bags': 20,
+            'position_size': 1000
+        }
+        
+        # Override with values from config if available and enabled
+        if use_configs and 'tree' in configs and 'tree_strategy_learner' in configs['tree']:
+            conf_tree = configs['tree']['tree_strategy_learner']
+            if 'window_size' in conf_tree:
+                default_tree_params['window_size'] = conf_tree['window_size']
+            if 'buy_threshold' in conf_tree:
+                default_tree_params['buy_threshold'] = conf_tree['buy_threshold']
+            if 'sell_threshold' in conf_tree:
+                default_tree_params['sell_threshold'] = conf_tree['sell_threshold']
+            if 'prediction_days' in conf_tree:
+                default_tree_params['prediction_days'] = conf_tree['prediction_days']
+            if 'leaf_size' in conf_tree:
+                default_tree_params['leaf_size'] = conf_tree['leaf_size']
+            if 'bags' in conf_tree:
+                default_tree_params['bags'] = conf_tree['bags']
+            if 'position_size' in conf_tree:
+                default_tree_params['position_size'] = conf_tree['position_size']
+        
         tree_params = {
-            'window_size': st.number_input("Window Size", min_value=5, max_value=50, value=20, key="tree_window"),
-            'buy_threshold': st.number_input("Buy Threshold", min_value=0.01, max_value=0.1, value=0.02, format="%.2f", key="tree_buy"),
-            'sell_threshold': st.number_input("Sell Threshold", min_value=-0.1, max_value=-0.01, value=-0.02, format="%.2f", key="tree_sell"),
-            'prediction_days': st.number_input("Prediction Days Ahead", min_value=1, max_value=20, value=5, key="tree_pred"),
-            'leaf_size': st.number_input("Leaf Size", min_value=1, max_value=20, value=5, key="tree_leaf"),
-            'bags': st.number_input("Number of Bags", min_value=5, max_value=50, value=20, key="tree_bags"),
-            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=1000, step=100, key="tree_pos")
+            'window_size': st.number_input("Window Size", min_value=5, max_value=50, value=default_tree_params['window_size'], key="tree_window"),
+            'buy_threshold': st.number_input("Buy Threshold", min_value=0.01, max_value=0.1, value=default_tree_params['buy_threshold'], format="%.2f", key="tree_buy"),
+            'sell_threshold': st.number_input("Sell Threshold", min_value=-0.1, max_value=-0.01, value=default_tree_params['sell_threshold'], format="%.2f", key="tree_sell"),
+            'prediction_days': st.number_input("Prediction Days Ahead", min_value=1, max_value=20, value=default_tree_params['prediction_days'], key="tree_pred"),
+            'leaf_size': st.number_input("Leaf Size", min_value=1, max_value=20, value=default_tree_params['leaf_size'], key="tree_leaf"),
+            'bags': st.number_input("Number of Bags", min_value=5, max_value=50, value=default_tree_params['bags'], key="tree_bags"),
+            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=default_tree_params['position_size'], step=100, key="tree_pos")
         }
 
 if "Q-Strategy Learner" in selected_strategies:
     with st.sidebar.expander("Q-Strategy Parameters"):
-        q_params = {
-            'indicator_bins': st.number_input("Indicator Bins", min_value=5, max_value=20, value=10, key="q_bins"),
-            'window_size': st.number_input("Window Size", min_value=5, max_value=50, value=20, key="q_window"),
-            'rsi_window': st.number_input("RSI Window", min_value=5, max_value=30, value=14, key="q_rsi"),
-            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=1000, step=100, key="q_pos"),
-            'max_iterations': st.number_input("Max Training Iterations", min_value=10, max_value=500, value=100, step=10, key="q_iter"),
-            'learning_rate': st.number_input("Learning Rate", min_value=0.05, max_value=0.5, value=0.2, format="%.2f", key="q_alpha"),
-            'discount_factor': st.number_input("Discount Factor", min_value=0.5, max_value=1.0, value=0.9, format="%.2f", key="q_gamma"),
-            'random_action_rate': st.number_input("Initial Random Action Rate", min_value=0.1, max_value=1.0, value=0.5, format="%.2f", key="q_rar"),
-            'random_action_decay': st.number_input("Random Action Decay Rate", min_value=0.9, max_value=1.0, value=0.99, format="%.3f", key="q_radr"),
-            'dyna_iterations': st.number_input("Dyna-Q Planning Iterations", min_value=0, max_value=50, value=10, key="q_dyna"),
+        # Get default values from config if available
+        default_q_params = {
+            'indicator_bins': 10,
+            'window_size': 20,
+            'rsi_window': 14,
+            'stoch_window': 14,
+            'cci_window': 20,
+            'position_size': 1000,
+            'max_iterations': 100,
+            'use_bb': True,
+            'use_rsi': True,
+            'use_macd': True,
+            'use_stoch': False,
+            'use_cci': False,
+            'momentum_periods': [3, 5, 10],
+            'learning_rate': 0.2,
+            'discount_factor': 0.9,
+            'random_action_rate': 0.5,
+            'random_action_decay': 0.99,
+            'dyna_iterations': 10,
+            'convergence_threshold': 0.1
         }
+        
+        # Override with values from config if available and enabled
+        if use_configs and 'qlearn' in configs and 'q_strategy_learner' in configs['qlearn']:
+            conf_q = configs['qlearn']['q_strategy_learner']
+            
+            for param in default_q_params:
+                if param in conf_q:
+                    default_q_params[param] = conf_q[param]
+        
+        # Basic parameters section
+        st.sidebar.subheader("Basic Parameters")
+        q_params = {
+            'indicator_bins': st.number_input("Indicator Bins", min_value=5, max_value=20, value=default_q_params['indicator_bins'], key="q_bins"),
+            'window_size': st.number_input("Window Size", min_value=5, max_value=50, value=default_q_params['window_size'], key="q_window"),
+            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=default_q_params['position_size'], step=100, key="q_pos"),
+            'max_iterations': st.number_input("Max Training Iterations", min_value=10, max_value=500, value=default_q_params['max_iterations'], step=10, key="q_iter"),
+        }
+        
+        # Indicator selection section
+        st.sidebar.subheader("Technical Indicators")
+        q_params.update({
+            'use_bb': st.checkbox("Use Bollinger Bands", value=default_q_params['use_bb'], key="q_use_bb"),
+            'use_rsi': st.checkbox("Use RSI", value=default_q_params['use_rsi'], key="q_use_rsi"),
+            'use_macd': st.checkbox("Use MACD", value=default_q_params['use_macd'], key="q_use_macd"),
+            'use_stoch': st.checkbox("Use Stochastic Oscillator", value=default_q_params['use_stoch'], key="q_use_stoch"),
+            'use_cci': st.checkbox("Use CCI", value=default_q_params['use_cci'], key="q_use_cci"),
+        })
+        
+        # Show indicator-specific parameters if selected
+        if q_params['use_rsi']:
+            q_params['rsi_window'] = st.number_input("RSI Window", min_value=5, max_value=30, value=default_q_params['rsi_window'], key="q_rsi")
+        
+        if q_params['use_stoch']:
+            q_params['stoch_window'] = st.number_input("Stochastic Window", min_value=5, max_value=30, value=default_q_params['stoch_window'], key="q_stoch")
+        
+        if q_params['use_cci']:
+            q_params['cci_window'] = st.number_input("CCI Window", min_value=5, max_value=30, value=default_q_params['cci_window'], key="q_cci")
+        
+        # Momentum parameters
+        st.sidebar.subheader("Momentum Parameters")
+        use_momentum = st.checkbox("Use Momentum Indicators", value=len(default_q_params['momentum_periods']) > 0, key="q_use_momentum")
+        if use_momentum:
+            momentum_3 = st.checkbox("3-day Momentum", value=3 in default_q_params['momentum_periods'], key="q_mom_3")
+            momentum_5 = st.checkbox("5-day Momentum", value=5 in default_q_params['momentum_periods'], key="q_mom_5")
+            momentum_10 = st.checkbox("10-day Momentum", value=10 in default_q_params['momentum_periods'], key="q_mom_10")
+            
+            q_params['momentum_periods'] = [
+                period for period, selected in [
+                    (3, momentum_3), 
+                    (5, momentum_5), 
+                    (10, momentum_10)
+                ] if selected
+            ]
+        else:
+            q_params['momentum_periods'] = []
+        
+        # Q-Learning parameters section
+        st.sidebar.subheader("Q-Learning Parameters")
+        q_params.update({
+            'learning_rate': st.number_input("Learning Rate", min_value=0.05, max_value=0.5, value=default_q_params['learning_rate'], format="%.2f", key="q_alpha"),
+            'discount_factor': st.number_input("Discount Factor", min_value=0.5, max_value=1.0, value=default_q_params['discount_factor'], format="%.2f", key="q_gamma"),
+            'random_action_rate': st.number_input("Initial Random Action Rate", min_value=0.1, max_value=1.0, value=default_q_params['random_action_rate'], format="%.2f", key="q_rar"),
+            'random_action_decay': st.number_input("Random Action Decay Rate", min_value=0.9, max_value=1.0, value=default_q_params['random_action_decay'], format="%.3f", key="q_radr"),
+            'dyna_iterations': st.number_input("Dyna-Q Planning Iterations", min_value=0, max_value=50, value=default_q_params['dyna_iterations'], key="q_dyna"),
+            'convergence_threshold': st.number_input("Convergence Threshold", min_value=0.01, max_value=1.0, value=default_q_params['convergence_threshold'], format="%.2f", key="q_conv"),
+        })
 
 # Run button
 run_button = st.sidebar.button("Run Strategies")
