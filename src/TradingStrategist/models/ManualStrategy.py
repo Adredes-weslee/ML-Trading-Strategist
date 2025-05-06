@@ -138,7 +138,9 @@ class ManualStrategy:
         trades = self._generate_trades(signals, prices_with_buffer.index, symbol)
         
         # Filter trades to match the requested date range
-        trades = trades[trades.index >= sd]
+        # Fix: Convert sd to pandas Timestamp for proper comparison
+        sd_timestamp = pd.Timestamp(sd)
+        trades = trades[trades.index >= sd_timestamp]
         
         if self.verbose:
             print(f"Generated {(trades != 0).sum()[0]} trade signals")
