@@ -72,6 +72,10 @@ if ($null -eq $condaExe) {
         if (Test-Path $pythonPath) {
             Write-Host "Using Python from: $pythonPath" -ForegroundColor Green
             
+            # Install required packages directly
+            Write-Host "Installing required packages..." -ForegroundColor Yellow
+            & $pythonPath -m pip install matplotlib streamlit pandas numpy pyyaml
+            
             # Check if streamlit is installed in this environment
             $streamlitPath = & $pythonPath -c "import streamlit; print(streamlit.__file__)" 2>$null
             
@@ -123,11 +127,22 @@ if (Test-Path "$condaPath\Scripts\activate.ps1") {
     $env:PATH = "$condaPath\envs\$envName;$condaPath\envs\$envName\Library\mingw-w64\bin;$condaPath\envs\$envName\Library\usr\bin;$condaPath\envs\$envName\Library\bin;$condaPath\envs\$envName\Scripts;$condaPath\envs\$envName\bin;$env:PATH"
 }
 
+# Get python executable path
+$pythonExe = "python"
+if (Test-Path "$condaPath\envs\$envName\python.exe") {
+    $pythonExe = "$condaPath\envs\$envName\python.exe"
+    Write-Host "Using Python executable: $pythonExe" -ForegroundColor Green
+}
+
+# Install required packages directly using pip
+Write-Host "Installing required packages..." -ForegroundColor Yellow
+& $pythonExe -m pip install matplotlib streamlit pandas numpy pyyaml
+
 # Check if streamlit is installed
-$streamlitPath = & python -c "import streamlit; print(streamlit.__file__)" 2>$null
+$streamlitPath = & $pythonExe -c "import streamlit; print(streamlit.__file__)" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Streamlit is not installed in the current environment. Installing now..." -ForegroundColor Yellow
-    pip install streamlit
+    & $pythonExe -m pip install streamlit
 }
 else {
     Write-Host "Using Streamlit from: $streamlitPath" -ForegroundColor Green
@@ -135,4 +150,4 @@ else {
 
 # Run the Streamlit application
 Write-Host "Running Streamlit application..." -ForegroundColor Green
-python -m streamlit run app.py
+& $pythonExe -m streamlit run app.py
