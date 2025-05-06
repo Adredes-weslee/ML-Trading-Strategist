@@ -12,18 +12,17 @@ This package provides tools for:
 __version__ = "0.1.0"
 __author__ = "Wes"  # Replace with your name
 
-# Core components
-# Fixed imports to match actual file names/class names
-from TradingStrategist.models.ManualStrategy import ManualStrategy  # Fixed CamelCase
-from TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner  # Fixed class name
-from TradingStrategist.models.QStrategyLearner import QStrategyLearner  # Assuming this one is correct
-from TradingStrategist.indicators.technical import Indicators
-from TradingStrategist.simulation.market_sim import compute_portvals, assess_portfolio
+# Core components - using relative imports
+from .models.ManualStrategy import ManualStrategy
+from .models.TreeStrategyLearner import TreeStrategyLearner
+from .models.QStrategyLearner import QStrategyLearner
+from .indicators.technical import Indicators
+from .simulation.market_sim import compute_portvals, assess_portfolio
 
 # Make key components available at the package level
 __all__ = [
     'ManualStrategy',
-    'TreeStrategyLearner',  # Updated to match the actual class name
+    'TreeStrategyLearner',
     'QStrategyLearner',
     'Indicators',
     'compute_portvals',
