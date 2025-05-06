@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
 
-from TradingStrategist.models.ManualStrategy import ManualStrategy  # Fixed CamelCase
-from TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner  # Fixed class name
+from TradingStrategist.models.ManualStrategy import ManualStrategy
+from TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
 from TradingStrategist.models.QStrategyLearner import QStrategyLearner
 from TradingStrategist.data.loader import get_data
 from TradingStrategist.simulation.market_sim import compute_portvals
@@ -144,7 +144,7 @@ def evaluate_model(model_name, symbol, start_date, end_date,
     Parameters:
     -----------
     model_name : str
-        Name of the model to evaluate ('manual', 'strategy_learner', 'q_strategy_learner')
+        Name of the model to evaluate ('manual', 'tree_strategy_learner', 'q_strategy_learner')
     symbol : str
         Stock symbol to trade
     start_date : datetime
@@ -173,11 +173,11 @@ def evaluate_model(model_name, symbol, start_date, end_date,
     """
     if model_name == "manual":
         model = ManualStrategy(verbose=False)
-    elif model_name == "strategy_learner":
+    elif model_name == "tree_strategy_learner" or model_name == "strategy_learner":
         if strategy_params is None:
             strategy_params = {}
         
-        model = TreeStrategyLearner(  # Fixed class name
+        model = TreeStrategyLearner(
             verbose=False, 
             impact=impact,
             commission=commission,
@@ -212,7 +212,7 @@ def evaluate_model(model_name, symbol, start_date, end_date,
         raise ValueError(f"Unknown model name: {model_name}")
     
     # Train if needed (for ML strategies)
-    if model_name in ["strategy_learner", "q_strategy_learner"]:
+    if model_name in ["tree_strategy_learner", "strategy_learner", "q_strategy_learner"]:
         # Use training period if provided, otherwise use evaluation period
         train_start = training_start if training_start is not None else start_date
         train_end = training_end if training_end is not None else end_date
@@ -285,8 +285,8 @@ def run_evaluation(config_path):
     impact = trading_config.get('impact', 0.005)
     
     # Get strategy parameters - check both naming conventions
-    if 'dt_strategy' in config:
-        strategy_params = config['dt_strategy']
+    if 'tree_strategy_learner' in config:
+        strategy_params = config['tree_strategy_learner']
     elif 'strategy_learner' in config:
         strategy_params = config['strategy_learner']
     else:
@@ -300,7 +300,7 @@ def run_evaluation(config_path):
     save_figures = viz_config.get('save_figures', True)
     compare_with_benchmark = viz_config.get('compare_with_benchmark', True)
     include_manual = viz_config.get('compare_with_manual', False)
-    include_strategy_learner = viz_config.get('compare_with_strategy_learner', False)
+    include_tree_strategy_learner = viz_config.get('compare_with_strategy_learner', False)
     include_q_strategy = viz_config.get('compare_with_q_strategy', True)
     
     # Determine which models to evaluate
@@ -310,16 +310,18 @@ def run_evaluation(config_path):
         # Explicit list of models
         if 'manual' in config['models']:
             models_to_evaluate.append('manual')
-        if 'strategy_learner' in config['models']:
-            models_to_evaluate.append('strategy_learner')
+        if 'tree_strategy_learner' in config['models']:
+            models_to_evaluate.append('tree_strategy_learner')
+        elif 'strategy_learner' in config['models']:  # For backward compatibility
+            models_to_evaluate.append('tree_strategy_learner')
         if 'q_strategy_learner' in config['models']:
             models_to_evaluate.append('q_strategy_learner')
     else:
         # Implicit based on visualization config
         if include_manual:
             models_to_evaluate.append('manual')
-        if include_strategy_learner:
-            models_to_evaluate.append('strategy_learner')
+        if include_tree_strategy_learner:
+            models_to_evaluate.append('tree_strategy_learner')
         if include_q_strategy:
             models_to_evaluate.append('q_strategy_learner')
     
@@ -341,14 +343,14 @@ def run_evaluation(config_path):
     for model_name in models_to_evaluate:
         print(f"\nEvaluating {model_name}...")
         
-        if model_name == "strategy_learner":
+        if model_name == "tree_strategy_learner":
             portvals = evaluate_model(
                 model_name, symbol, test_start, test_end,
                 training_start=train_start, training_end=train_end,
                 starting_value=starting_value, commission=commission, impact=impact,
                 strategy_params=strategy_params
             )
-            results['Tree Strategy Learner'] = portvals  # Changed from "Strategy Learner" to "Tree Strategy Learner"
+            results['Tree Strategy Learner'] = portvals
         elif model_name == "q_strategy_learner":
             portvals = evaluate_model(
                 model_name, symbol, test_start, test_end,
