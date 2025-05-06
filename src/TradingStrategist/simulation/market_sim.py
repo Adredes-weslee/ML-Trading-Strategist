@@ -10,7 +10,8 @@ import numpy as np
 
 
 def compute_portvals(orders, start_val=100000.0, commission=9.95, impact=0.005,
-                     start_date=None, end_date=None, prices_df=None):
+                     start_date=None, end_date=None, prices_df=None, 
+                     cost_model='fixed_plus_slippage', slippage_std=0.0):
     """
     Compute portfolio values over time based on a set of orders.
     
@@ -31,6 +32,11 @@ def compute_portvals(orders, start_val=100000.0, commission=9.95, impact=0.005,
         End date for portfolio simulation
     prices_df : pd.DataFrame, optional
         Prices DataFrame if already available
+    cost_model : str, optional
+        Transaction cost model to use: 'fixed_only', 'fixed_plus_slippage',
+        'volume_adjusted', or 'proportional', default 'fixed_plus_slippage'
+    slippage_std : float, optional
+        Standard deviation for random slippage component, default 0.0
         
     Returns:
     --------
@@ -67,6 +73,11 @@ def compute_portvals(orders, start_val=100000.0, commission=9.95, impact=0.005,
     # Initialize cash Series with float64 dtype
     cash = pd.Series(float(start_val), index=prices_all.index, dtype=np.float64)
     
+    # Validate cost model
+    valid_models = ['fixed_only', 'fixed_plus_slippage', 'volume_adjusted', 'proportional']
+    if cost_model not in valid_models:
+        raise ValueError(f"Invalid cost_model: {cost_model}. Must be one of {valid_models}")
+    
     # Process orders and update holdings and cash
     for date in orders.index:
         if date not in prices_all.index:
@@ -77,16 +88,53 @@ def compute_portvals(orders, start_val=100000.0, commission=9.95, impact=0.005,
             if shares == 0:
                 continue
             
-            # Calculate transaction cost (commission + impact)
+            # Calculate transaction cost based on selected model
             price = prices_all.loc[date, symbol]
-            trade_cost = abs(shares) * price * impact
-            commission_cost = commission if shares != 0 else 0
+            trade_value = abs(shares) * price
+            
+            # Apply random slippage if configured (simulates market noise)
+            if slippage_std > 0:
+                # Random normal noise proportional to price and configured std
+                random_slippage = np.random.normal(0, slippage_std * price)
+                # Adds noise in the adverse direction of the trade
+                price_with_slippage = price + (np.sign(shares) * random_slippage)
+                price = max(0.01, price_with_slippage)  # Ensure price doesn't go negative
+            
+            if cost_model == 'fixed_only':
+                # Fixed commission only
+                transaction_cost = commission if shares != 0 else 0
+                effective_price = price  # No additional impact
+            
+            elif cost_model == 'fixed_plus_slippage':
+                # Fixed commission plus market impact (default)
+                market_impact_cost = abs(shares) * price * impact
+                transaction_cost = commission + market_impact_cost
+                effective_price = price * (1 + impact * np.sign(shares))
+            
+            elif cost_model == 'volume_adjusted':
+                # Impact increases with trade size (sqrt model - common in literature)
+                # sqrt(shares) reflects that doubling order size doesn't double market impact
+                market_impact_factor = impact * np.sqrt(abs(shares) / 100)  # 100 shares as baseline
+                market_impact_cost = abs(shares) * price * market_impact_factor
+                transaction_cost = commission + market_impact_cost
+                effective_price = price * (1 + market_impact_factor * np.sign(shares))
+            
+            elif cost_model == 'proportional':
+                # Commission is percentage of trade value
+                transaction_cost = trade_value * impact
+                effective_price = price * (1 + impact * np.sign(shares))
+            
+            else:
+                # Should never reach here due to validation above
+                transaction_cost = commission
+                effective_price = price
             
             # Update holdings
             holdings.loc[date:, symbol] += float(shares)
             
-            # Update cash - already float dtype
-            cash_value = cash[date] - (shares * price + trade_cost + commission_cost)
+            # Update cash - use effective price for calculating cash impact
+            actual_trade_value = shares * effective_price
+            cash_value = cash[date] - (actual_trade_value + commission)
             cash.loc[date:] = cash_value
     
     # Calculate daily value of each position
