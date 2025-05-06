@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
+  - python=3.11
   # Core dependencies
   - numpy=1.24.3
   - pandas=2.0.3
@@ -22,5 +22,4 @@ dependencies:
   - mypy=1.4.1
   # Additional conda-forge packages
   - pip
-  - pip:
-    - "-e ."  # Install the current package in development mode
+  - streamlit=1.26.0
