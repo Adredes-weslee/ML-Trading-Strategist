@@ -17,7 +17,7 @@ from TradingStrategist.models.QStrategyLearner import QStrategyLearner
 from TradingStrategist.utils.helpers import get_output_path, load_config
 
 
-def train_strategy_learner(symbol, start_date, end_date, impact, verbose, leaf_size=5, bags=20, 
+def train_tree_strategy_learner(symbol, start_date, end_date, impact, verbose, leaf_size=5, bags=20, 
                           window_size=20, rsi_window=14, stoch_window=14, cci_window=20, 
                           buy_threshold=0.02, sell_threshold=-0.02, prediction_days=5, 
                           position_size=1000, **kwargs):
@@ -164,7 +164,7 @@ def train_q_strategy_learner(symbol, start_date, end_date, impact, verbose,
     return str(model_path)
 
 
-def train_strategy_learner_from_config(config_path):
+def train_tree_strategy_learner_from_config(config_path):
     """
     Train a TreeStrategyLearner using parameters from a config file.
     
@@ -200,7 +200,9 @@ def train_strategy_learner_from_config(config_path):
     impact = trading_config.get('impact', 0.005)
     
     # Get strategy learner parameters - check both naming conventions
-    if 'dt_strategy' in config:
+    if 'tree_strategy_learner' in config:
+        sl_params = config['tree_strategy_learner']
+    elif 'dt_strategy' in config:
         sl_params = config['dt_strategy']
     elif 'strategy_learner' in config:
         sl_params = config['strategy_learner']
@@ -228,7 +230,7 @@ def train_strategy_learner_from_config(config_path):
             params[key] = value
     
     # Train the model with extracted parameters
-    return train_strategy_learner(
+    return train_tree_strategy_learner(
         symbol=symbol, 
         start_date=start_date, 
         end_date=end_date, 
@@ -332,7 +334,9 @@ def train_multiple_impact_models(config_path):
         end_date = dt.datetime.strptime(config['data']['end_date'], '%Y-%m-%d')
     
     # Get strategy learner parameters - check both naming conventions
-    if 'dt_strategy' in config:
+    if 'tree_strategy_learner' in config:
+        sl_params = config['tree_strategy_learner']
+    elif 'dt_strategy' in config:
         sl_params = config['dt_strategy']
     elif 'strategy_learner' in config:
         sl_params = config['strategy_learner']
@@ -371,7 +375,7 @@ def train_multiple_impact_models(config_path):
     model_paths = []
     for impact in impact_values:
         print(f"\nTraining TreeStrategyLearner with impact={impact}")
-        model_path = train_strategy_learner(
+        model_path = train_tree_strategy_learner(
             symbol=symbol, 
             start_date=start_date, 
             end_date=end_date, 
@@ -401,7 +405,7 @@ def main():
         train_q_strategy_learner_from_config(config_path)
     else:
         # Default to regular strategy learner
-        train_strategy_learner_from_config(config_path)
+        train_tree_strategy_learner_from_config(config_path)
 
 
 if __name__ == "__main__":
