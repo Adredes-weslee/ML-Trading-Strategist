@@ -51,23 +51,23 @@ def main():
             print("No CSV files found in data directory!")
     
     if command == "train":
-        from TradingStrategist.train import main as train_main
+        from src.TradingStrategist.train import main as train_main
         sys.argv = [sys.argv[0]] + args
         return train_main()
     elif command == "evaluate":
-        from TradingStrategist.evaluate import main as evaluate_main
+        from src.TradingStrategist.evaluate import main as evaluate_main
         sys.argv = [sys.argv[0]] + args
         return evaluate_main()
     elif command == "experiment1":
-        from TradingStrategist.experiments.experiment1 import main as experiment1_main
+        from src.TradingStrategist.experiments.experiment1 import main as experiment1_main
         sys.argv = [sys.argv[0]] + args
         return experiment1_main()
     elif command == "experiment2":
-        from TradingStrategist.experiments.experiment2 import main as experiment2_main
+        from src.TradingStrategist.experiments.experiment2 import main as experiment2_main
         sys.argv = [sys.argv[0]] + args
         return experiment2_main()
     elif command == "manual-strategy":
-        from TradingStrategist.experiments.manual_strategy_evaluation import main as manual_strategy_main
+        from src.TradingStrategist.experiments.manual_strategy_evaluation import main as manual_strategy_main
         sys.argv = [sys.argv[0]] + args
         return manual_strategy_main()
     else:
