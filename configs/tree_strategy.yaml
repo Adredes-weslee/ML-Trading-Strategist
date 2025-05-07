@@ -1,53 +1,41 @@
-# Decision Tree Strategy configuration
-experiment:
-  name: "Decision Tree Strategy Analysis"
-  output_prefix: "tree_strategy"  # Ensures separate output files for tree strategy
-
 data:
-  symbol: "JPM"
-  training:
-    start_date: "2008-01-01"
-    end_date: "2009-12-31"
+  symbol: JPM
   testing:
-    start_date: "2010-01-01"
-    end_date: "2011-12-31"
-
+    end_date: '2011-12-31'
+    start_date: '2010-01-01'
+  training:
+    end_date: '2009-12-31'
+    start_date: '2008-01-01'
+experiment:
+  name: Decision Tree Strategy Analysis
+  output_prefix: tree_strategy
+models:
+- manual
+- tree_strategy_learner
 portfolio:
   starting_value: 100000
-
-tree_strategy_learner:
-  # Technical indicator parameters
-  window_size: 20
-  rsi_window: 14
-  stoch_window: 14
-  cci_window: 20
-  buy_threshold: 0.02
-  sell_threshold: -0.02
-  position_size: 1000
-  prediction_days: 5
-  
-  # Momentum parameters
-  momentum_periods: [3, 5, 10]
-  
-  # Normalization factors
-  rsi_norm: 100.0
-  stoch_norm: 100.0
-  cci_norm: 200.0
-  
-  # Tree parameters
-  leaf_size: 5
-  bags: 20
-  boost: false
-
 trading:
   commission: 9.95
   impact: 0.005
-
-# Explicitly list which models to evaluate
-models:
-  - manual
-  - tree_strategy_learner
-
+tree_strategy_learner:
+  bags: 20
+  boost: false
+  buy_threshold: 0.02
+  cci_norm: 200.0
+  cci_window: 20
+  leaf_size: 5
+  momentum_periods:
+  - 3
+  - 5
+  - 10
+  position_size: 1000
+  prediction_days: 5
+  rsi_norm: 100.0
+  rsi_window: 14
+  sell_threshold: -0.02
+  stoch_norm: 100.0
+  stoch_window: 14
+  window_size: 20
 visualization:
-  include_benchmark: true  # Include buy & hold benchmark
-  plot_decision_tree: true # Generate decision tree visualization
+  include_benchmark: true
+  plot_decision_tree: true
