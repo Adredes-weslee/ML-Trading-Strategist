@@ -23,3 +23,5 @@ dependencies:
   # Additional conda-forge packages
   - pip
   - streamlit=1.27.0
+  # Data fetching packages
+  - yfinance=0.2.31
