@@ -600,24 +600,23 @@ if "Q-Strategy Learner" in selected_strategies:
                 if param in conf_q:
                     default_q_params[param] = conf_q[param]
         
+        # Initialize the q_params dictionary
+        q_params = {}
+        
         # Basic parameters section
-        st.sidebar.subheader("Basic Parameters")
-        q_params = {
-            'indicator_bins': st.number_input("Indicator Bins", min_value=5, max_value=20, value=default_q_params['indicator_bins'], key="q_bins"),
-            'window_size': st.number_input("Window Size", min_value=5, max_value=50, value=default_q_params['window_size'], key="q_window"),
-            'position_size': st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=default_q_params['position_size'], step=100, key="q_pos"),
-            'max_iterations': st.number_input("Max Training Iterations", min_value=10, max_value=500, value=default_q_params['max_iterations'], step=10, key="q_iter"),
-        }
+        st.write("**Basic Parameters**")
+        q_params['indicator_bins'] = st.number_input("Indicator Bins", min_value=5, max_value=20, value=default_q_params['indicator_bins'], key="q_bins")
+        q_params['window_size'] = st.number_input("Window Size", min_value=5, max_value=50, value=default_q_params['window_size'], key="q_window")
+        q_params['position_size'] = st.number_input("Position Size (Shares)", min_value=100, max_value=10000, value=default_q_params['position_size'], step=100, key="q_pos")
+        q_params['max_iterations'] = st.number_input("Max Training Iterations", min_value=10, max_value=500, value=default_q_params['max_iterations'], step=10, key="q_iter")
         
         # Indicator selection section
-        st.sidebar.subheader("Technical Indicators")
-        q_params.update({
-            'use_bb': st.checkbox("Use Bollinger Bands", value=default_q_params['use_bb'], key="q_use_bb"),
-            'use_rsi': st.checkbox("Use RSI", value=default_q_params['use_rsi'], key="q_use_rsi"),
-            'use_macd': st.checkbox("Use MACD", value=default_q_params['use_macd'], key="q_use_macd"),
-            'use_stoch': st.checkbox("Use Stochastic Oscillator", value=default_q_params['use_stoch'], key="q_use_stoch"),
-            'use_cci': st.checkbox("Use CCI", value=default_q_params['use_cci'], key="q_use_cci"),
-        })
+        st.write("**Technical Indicators**")
+        q_params['use_bb'] = st.checkbox("Use Bollinger Bands", value=default_q_params['use_bb'], key="q_use_bb")
+        q_params['use_rsi'] = st.checkbox("Use RSI", value=default_q_params['use_rsi'], key="q_use_rsi")
+        q_params['use_macd'] = st.checkbox("Use MACD", value=default_q_params['use_macd'], key="q_use_macd")
+        q_params['use_stoch'] = st.checkbox("Use Stochastic Oscillator", value=default_q_params['use_stoch'], key="q_use_stoch")
+        q_params['use_cci'] = st.checkbox("Use CCI", value=default_q_params['use_cci'], key="q_use_cci")
         
         # Show indicator-specific parameters if selected
         if q_params['use_rsi']:
@@ -630,7 +629,7 @@ if "Q-Strategy Learner" in selected_strategies:
             q_params['cci_window'] = st.number_input("CCI Window", min_value=5, max_value=30, value=default_q_params['cci_window'], key="q_cci")
         
         # Momentum parameters
-        st.sidebar.subheader("Momentum Parameters")
+        st.write("**Momentum Parameters**")
         use_momentum = st.checkbox("Use Momentum Indicators", value=len(default_q_params['momentum_periods']) > 0, key="q_use_momentum")
         if use_momentum:
             momentum_3 = st.checkbox("3-day Momentum", value=3 in default_q_params['momentum_periods'], key="q_mom_3")
@@ -648,15 +647,13 @@ if "Q-Strategy Learner" in selected_strategies:
             q_params['momentum_periods'] = []
         
         # Q-Learning parameters section
-        st.sidebar.subheader("Q-Learning Parameters")
-        q_params.update({
-            'learning_rate': st.number_input("Learning Rate", min_value=0.05, max_value=0.5, value=default_q_params['learning_rate'], format="%.2f", key="q_alpha"),
-            'discount_factor': st.number_input("Discount Factor", min_value=0.5, max_value=1.0, value=default_q_params['discount_factor'], format="%.2f", key="q_gamma"),
-            'random_action_rate': st.number_input("Initial Random Action Rate", min_value=0.1, max_value=1.0, value=default_q_params['random_action_rate'], format="%.2f", key="q_rar"),
-            'random_action_decay': st.number_input("Random Action Decay Rate", min_value=0.9, max_value=1.0, value=default_q_params['random_action_decay'], format="%.3f", key="q_radr"),
-            'dyna_iterations': st.number_input("Dyna-Q Planning Iterations", min_value=0, max_value=50, value=default_q_params['dyna_iterations'], key="q_dyna"),
-            'convergence_threshold': st.number_input("Convergence Threshold", min_value=0.01, max_value=1.0, value=default_q_params['convergence_threshold'], format="%.2f", key="q_conv"),
-        })
+        st.write("**Q-Learning Parameters**")
+        q_params['learning_rate'] = st.number_input("Learning Rate", min_value=0.05, max_value=0.5, value=default_q_params['learning_rate'], format="%.2f", key="q_alpha")
+        q_params['discount_factor'] = st.number_input("Discount Factor", min_value=0.5, max_value=1.0, value=default_q_params['discount_factor'], format="%.2f", key="q_gamma")
+        q_params['random_action_rate'] = st.number_input("Initial Random Action Rate", min_value=0.1, max_value=1.0, value=default_q_params['random_action_rate'], format="%.2f", key="q_rar")
+        q_params['random_action_decay'] = st.number_input("Random Action Decay Rate", min_value=0.9, max_value=1.0, value=default_q_params['random_action_decay'], format="%.3f", key="q_radr")
+        q_params['dyna_iterations'] = st.number_input("Dyna-Q Planning Iterations", min_value=0, max_value=50, value=default_q_params['dyna_iterations'], key="q_dyna")
+        q_params['convergence_threshold'] = st.number_input("Convergence Threshold", min_value=0.01, max_value=1.0, value=default_q_params['convergence_threshold'], format="%.2f", key="q_conv")
 
 # Run button
 run_button = st.sidebar.button("Run Strategies")
