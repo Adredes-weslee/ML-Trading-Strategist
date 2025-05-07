@@ -38,8 +38,39 @@ cd ML-Trading-Strategist
 
 # Create and activate conda environment
 conda env create -f environment.yaml
-conda activate trading-env
+conda activate trading-strategist
 ```
+
+### Data Management
+
+TradingStrategist comes with utility scripts to manage the stock data:
+
+#### Downloading/Updating Stock Data
+Before running the application, you should update the stock data to get the latest market information:
+
+```bash
+# Run the data download script to fetch latest S&P 500 data
+python src/TradingStrategist/data/download_sp500_data.py
+```
+
+This script:
+- Downloads historical data for current S&P 500 stocks from Yahoo Finance
+- Updates existing data files with the latest available data
+- Preserves historical data for stocks that are no longer in the S&P 500
+- Downloads major indices ($SPX, $DJI, $VIX) for comparison
+
+#### Verifying Data Files
+You can check the status of your data files with:
+
+```bash
+# Verify data files integrity
+python src/TradingStrategist/data/check_data.py
+```
+
+This will report on:
+- Available data files and their sizes
+- Required files that may be missing
+- Data format issues that could affect application performance
 
 ### Running the Application
 
@@ -54,7 +85,14 @@ The application will open in your default web browser at http://localhost:8501
 
 ## 🧠 Trading Strategies
 
-TradingStrategist implements three distinct algorithmic trading approaches:
+TradingStrategist implements three distinct algorithmic trading approaches plus a benchmark strategy:
+
+### 0. Benchmark Strategy
+A simple buy-and-hold approach used as a baseline for comparison:
+- **Single Stock Mode**: Buys a fixed amount (default 1000 shares) on day one and holds until the end
+- **Portfolio Mode**: Buys and holds multiple stocks according to the specified weights
+  - With equal weights: Divides capital equally among all selected stocks
+  - With custom weights: Allocates capital according to the specified percentage for each stock
 
 ### 1. Manual Strategy
 A rules-based approach using technical indicators with configurable parameters:
