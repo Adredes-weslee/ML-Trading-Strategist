@@ -15,6 +15,8 @@ import io
 import logging
 import random
 import sys
+import json
+from urllib.error import HTTPError
 
 # Get project root directory (3 levels up from this script)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
@@ -52,6 +54,12 @@ DELISTED_TICKERS = {
     # Add more as they're identified
 }
 
+# Rate limiting configuration
+INITIAL_DELAY = 2.0  # Starting delay between requests in seconds
+MAX_DELAY = 60.0     # Maximum delay between requests
+MAX_RETRIES = 3      # Maximum number of retries per ticker
+BACKOFF_FACTOR = 2   # Factor by which to increase delay on failure
+
 def get_sp500_tickers():
     """Get current S&P 500 tickers using Wikipedia."""
     logging.info(f"Fetching current S&P 500 tickers from Wikipedia...")
@@ -77,6 +85,70 @@ def get_historical_sp500_tickers():
     
     return existing_tickers
 
+def test_yahoo_connection():
+    """Test connection to Yahoo Finance API."""
+    try:
+        logging.info("Testing connection to Yahoo Finance...")
+        response = requests.get("https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d")
+        status_code = response.status_code
+        logging.info(f"Yahoo Finance test connection status code: {status_code}")
+        
+        if status_code == 200:
+            logging.info("Yahoo Finance API connection successful.")
+            return True
+        elif status_code == 429:
+            logging.error("Yahoo Finance API returned 429 Too Many Requests - API rate limit exceeded.")
+            logging.info("Waiting 60 seconds before continuing...")
+            time.sleep(60)  # Wait a full minute
+            return False
+        else:
+            logging.error(f"Yahoo Finance API returned unexpected status code: {status_code}")
+            return False
+    except Exception as e:
+        logging.error(f"Error connecting to Yahoo Finance: {e}")
+        return False
+
+def download_with_retry(ticker, start_date, end_date):
+    """Download stock data with exponential backoff retry logic."""
+    yahoo_ticker = ticker
+    # Convert special tickers
+    if ticker == '$SPX':
+        yahoo_ticker = '^GSPC'
+    elif ticker == '$DJI':
+        yahoo_ticker = '^DJI'
+    elif ticker == '$VIX':
+        yahoo_ticker = '^VIX'
+    elif '.' in ticker:
+        yahoo_ticker = ticker.replace('.', '-')
+        
+    delay = INITIAL_DELAY
+    attempts = 0
+    
+    while attempts < MAX_RETRIES:
+        try:
+            stock_data = yf.download(yahoo_ticker, start=start_date, end=end_date, progress=False)
+            return stock_data, None  # Success
+        except HTTPError as e:
+            if hasattr(e, 'code') and e.code == 429:
+                attempts += 1
+                wait_time = min(delay * (BACKOFF_FACTOR ** attempts), MAX_DELAY)
+                logging.warning(f"{ticker}: Rate limited (429). Waiting {wait_time:.1f}s before retry {attempts}/{MAX_RETRIES}")
+                time.sleep(wait_time)
+                continue
+            else:
+                return None, f"HTTP error: {str(e)}"
+        except Exception as e:
+            if "429" in str(e):
+                attempts += 1
+                wait_time = min(delay * (BACKOFF_FACTOR ** attempts), MAX_DELAY)
+                logging.warning(f"{ticker}: Rate limited (429). Waiting {wait_time:.1f}s before retry {attempts}/{MAX_RETRIES}")
+                time.sleep(wait_time)
+                continue
+            else:
+                return None, f"Error: {str(e)}"
+    
+    return None, f"Max retries ({MAX_RETRIES}) exceeded"
+
 def download_stock_data(ticker, start_date='2000-01-01', end_date=None):
     """Download historical stock data for a specific ticker."""
     if end_date is None:
@@ -88,18 +160,6 @@ def download_stock_data(ticker, start_date='2000-01-01', end_date=None):
     if ticker in DELISTED_TICKERS:
         logging.info(f"{ticker}: Skipping - {DELISTED_TICKERS[ticker]}")
         return "skipped"
-    
-    # Yahoo Finance uses different symbols for some tickers
-    # Map special cases
-    yahoo_ticker = ticker
-    if ticker == '$SPX':
-        yahoo_ticker = '^GSPC'
-    elif ticker == '$DJI':
-        yahoo_ticker = '^DJI'
-    elif ticker == '$VIX':
-        yahoo_ticker = '^VIX'
-    elif '.' in ticker:
-        yahoo_ticker = ticker.replace('.', '-')
     
     try:
         # If file exists, only download new data
@@ -118,18 +178,19 @@ def download_stock_data(ticker, start_date='2000-01-01', end_date=None):
         else:
             logging.info(f"{ticker}: Downloading full history from {start_date} to {end_date}")
         
-        # Download the data with progress suppressed
-        try:
-            stock_data = yf.download(yahoo_ticker, start=start_date, end=end_date, progress=False)
-        except Exception as e:
-            logging.error(f"Failed to download {ticker}: {str(e)}")
-            return "failed"
+        # Download the data with retry logic
+        stock_data, error = download_with_retry(ticker, start_date, end_date)
         
-        # If no data was returned, log and return
-        if stock_data.empty:
-            logging.warning(f"{ticker}: No data available for the specified date range.")
-            # Don't consider this a failure as the ticker may be delisted
-            return "no-data"
+        # If error occurred or no data was returned
+        if error or stock_data is None or stock_data.empty:
+            if error:
+                logging.error(f"{ticker}: Download failed - {error}")
+                if "429" in str(error):
+                    return "rate-limited"
+                return "failed"
+            else:
+                logging.warning(f"{ticker}: No data available for the specified date range.")
+                return "no-data"
         
         # Reset index to make Date a column
         stock_data.reset_index(inplace=True)
@@ -182,7 +243,7 @@ def download_index_data():
     for name, symbol in indices.items():
         logging.info(f"Downloading {name} ({symbol}) data...")
         status[name] = download_stock_data(name, start_date='2000-01-01')
-        time.sleep(1.5)  # Increased delay for index data
+        time.sleep(3.0)  # Extra delay for index data
     
     return status
 
@@ -190,6 +251,12 @@ def main():
     """Main function to download all S&P 500 stock data."""
     logging.info("Starting S&P 500 data download process...")
     logging.info(f"Data will be saved to: {DATA_DIR}")
+    
+    # First test connection to Yahoo Finance
+    if not test_yahoo_connection():
+        logging.error("Failed to connect to Yahoo Finance API. Please check your internet connection and try again later.")
+        print("ERROR: Could not connect to Yahoo Finance. See log for details.")
+        return
     
     # Get current S&P 500 tickers
     current_tickers = get_sp500_tickers()
@@ -221,25 +288,53 @@ def main():
         "no-data": 0,
         "no-new-data": 0,
         "failed": 0,
+        "rate-limited": 0,
         "error": 0
     }
+    
+    # Rate limiting tracking
+    consecutive_rate_limits = 0
+    rate_limit_pause_threshold = 3  # How many consecutive rate limits before pausing
     
     # Download stock data for each ticker
     for i, ticker in enumerate(all_tickers):
         try:
-            result = download_stock_data(ticker)
-            status_counts[result] += 1
-            
             # Show progress in console
             if i % progress_interval == 0:
                 sys.stdout.write("=")
                 sys.stdout.flush()
+                
+            # Check if we need to pause due to rate limiting
+            if consecutive_rate_limits >= rate_limit_pause_threshold:
+                pause_time = 120  # 2 minutes
+                logging.warning(f"Detected {consecutive_rate_limits} consecutive rate limits. Pausing for {pause_time} seconds...")
+                print(f"\nRate limit detected - pausing for {pause_time} seconds...", end="")
+                sys.stdout.flush()
+                time.sleep(pause_time)
+                consecutive_rate_limits = 0
+                print(" resuming")
+            
+            result = download_stock_data(ticker)
+            status_counts[result] += 1
+            
+            # Track consecutive rate limits
+            if result == "rate-limited":
+                consecutive_rate_limits += 1
+            else:
+                consecutive_rate_limits = 0
+                
         except Exception as e:
             logging.error(f"Unexpected error processing {ticker}: {str(e)}")
             status_counts["error"] += 1
         
-        # Add a variable delay to avoid hitting API limits (1-2 seconds)
-        time.sleep(1.0 + random.random())
+        # Add a variable delay to avoid hitting API limits
+        # Use longer delays when we're seeing rate limits
+        if consecutive_rate_limits > 0:
+            delay = 4.0 + (random.random() * 2.0)  # 4-6 seconds
+        else:
+            delay = 2.0 + (random.random() * 1.0)  # 2-3 seconds
+            
+        time.sleep(delay)
     
     # Complete the progress bar
     print("] Done!")
@@ -252,6 +347,7 @@ def main():
     logging.info(f"No new data to add: {status_counts['no-new-data']}")
     logging.info(f"Skipped known delisted/changed tickers: {status_counts['skipped']}")
     logging.info(f"No data available (likely delisted): {status_counts['no-data']}")
+    logging.info(f"Rate limited: {status_counts['rate-limited']}")
     logging.info(f"Failed downloads: {status_counts['failed']}")
     logging.info(f"Errors: {status_counts['error']}")
     
@@ -261,6 +357,11 @@ def main():
         logging.info(f"{index}: {status}")
     
     logging.info("S&P 500 data download completed.")
+    
+    if status_counts['rate-limited'] > 0:
+        logging.warning("\nWARNING: Your downloads were rate-limited by Yahoo Finance.")
+        logging.warning("Try running the script again later or with a smaller number of tickers.")
+        print("\nWARNING: Rate limits encountered - see log for details.")
 
 if __name__ == "__main__":
     main()
