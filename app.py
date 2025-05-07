@@ -8,31 +8,8 @@ development and backtesting.
 
 import os
 import sys
-import subprocess
 
-# Install required packages at runtime if they're not available
-required_packages = ["streamlit", "pandas", "numpy", "matplotlib", "pyyaml"]
-
-def ensure_packages_installed():
-    """Ensure all required packages are installed."""
-    import importlib
-    
-    packages_to_install = []
-    for package in required_packages:
-        try:
-            importlib.import_module(package)
-        except ImportError:
-            packages_to_install.append(package)
-    
-    if packages_to_install:
-        print(f"Installing missing packages: {', '.join(packages_to_install)}")
-        subprocess.check_call([sys.executable, "-m", "pip", "install"] + packages_to_install)
-        print("Installation complete!")
-
-# Ensure packages are installed before importing them
-ensure_packages_installed()
-
-# Now import all required packages
+# Import basic packages first
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -134,6 +111,19 @@ def load_default_configs():
     
     return configs
 
+# Load configurations
+configs = load_default_configs()
+
+# Initialize parameter dictionaries with defaults to avoid NameError when Save button is clicked
+manual_params = {'window_size': 20, 'rsi_window': 14, 'buy_threshold': 0.02, 'sell_threshold': -0.02, 'position_size': 1000}
+tree_params = {'window_size': 20, 'buy_threshold': 0.02, 'sell_threshold': -0.02, 'prediction_days': 5, 'leaf_size': 5, 'bags': 20, 'position_size': 1000}
+q_params = {
+    'indicator_bins': 10, 'window_size': 20, 'rsi_window': 14, 'stoch_window': 14, 'cci_window': 20, 'position_size': 1000,
+    'max_iterations': 100, 'use_bb': True, 'use_rsi': True, 'use_macd': True, 'use_stoch': False, 'use_cci': False,
+    'momentum_periods': [3, 5, 10], 'learning_rate': 0.2, 'discount_factor': 0.9, 'random_action_rate': 0.5,
+    'random_action_decay': 0.99, 'dyna_iterations': 10, 'convergence_threshold': 0.1
+}
+
 # Title and description
 st.title("📈 TradingStrategist")
 st.markdown(
@@ -149,9 +139,6 @@ st.markdown(
     - Compare performance across different approach types
     """
 )
-
-# Load configurations
-configs = load_default_configs()
 
 @st.cache_data
 def get_available_symbols():
