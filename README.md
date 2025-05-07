@@ -11,8 +11,6 @@
 
 > A modular machine learning framework for algorithmic trading strategy development and backtesting with portfolio optimization support
 
-![TradingStrategist Banner](static/banner.png)
-
 ## 📋 About The Project
 
 TradingStrategist is an end-to-end machine learning framework designed for developing, testing, and comparing various algorithmic trading strategies. The platform provides a seamless environment for traders and researchers to experiment with different approaches to market prediction and strategy optimization.
@@ -210,32 +208,31 @@ graph TD
 ```
 ├── app.py                 # Streamlit application
 ├── environment.yaml       # Conda environment specification
-├── requirements.txt       # Python dependencies
-├── run_streamlit.py       # Warning-suppressed launcher
-├── run_streamlit.ps1      # Windows PowerShell launch script
-├── run_app.bat            # Windows Command Prompt launch script
-├── run_app.sh             # Linux/macOS launch script
+├── README.md              # Project documentation
 │
 ├── configs/               # YAML configuration files
 │   ├── data.yaml          # Data source configuration
+│   ├── indicators.yaml    # Technical indicators parameters
+│   ├── manual_strategy_config.yaml # Manual strategy settings
 │   ├── market_sim.yaml    # Market simulator parameters
-│   ├── manual_strategy_config.yaml
-│   ├── tree_strategy.yaml
-│   └── qstrategy.yaml     # Strategy-specific configurations
+│   ├── qstrategy.yaml     # Q-Learning strategy settings
+│   └── tree_strategy.yaml # Decision tree strategy settings
 │
 ├── data/                  # Stock price data CSV files
-│   └── *.csv              # Individual stock data
+│   ├── $DJI.csv           # Dow Jones Industrial Average
+│   ├── $SPX.csv           # S&P 500 Index
+│   ├── $VIX.csv           # Volatility Index
+│   └── *.csv              # Individual stock data (AAPL, MSFT, etc.)
 │
 └── src/                   # TradingStrategist implementation
     └── TradingStrategist/
         ├── data/          # Data loading and preprocessing
+        ├── indicators/    # Technical indicator implementations
         ├── models/        # Strategy implementations
         │   ├── ManualStrategy.py
         │   ├── TreeStrategyLearner.py
         │   └── QStrategyLearner.py
-        ├── indicators/    # Technical indicators
         ├── simulation/    # Market simulator
-        ├── experiments/   # Experiment scripts
         └── utils/         # Helper utilities
 ```
 
