@@ -33,7 +33,7 @@ TradingStrategist is an end-to-end machine learning framework designed for devel
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ML-Trading-Strategist.git
+git clone https://github.com/Adredes-weslee/ML-Trading-Strategist.git
 cd ML-Trading-Strategist
 
 # Create and activate conda environment
@@ -43,26 +43,42 @@ conda activate trading-strategist
 
 ### Data Management
 
-TradingStrategist comes with utility scripts to manage the stock data:
+TradingStrategist requires historical stock data to function properly. You have two options for acquiring this data:
 
-#### Downloading/Updating Stock Data
-Before running the application, you should update the stock data to get the latest market information:
+#### Option 1: Use Pre-downloaded Data (Recommended)
+The easiest way to get started is to use our pre-packaged dataset from GitHub:
+
+```bash
+# Clone the data repository (one-time step)
+git clone https://github.com/Adredes-weslee/ML-Trading-Strategist-Data.git data
+
+# Or if you already have a data folder, update it
+cd data
+git pull origin main
+cd ..
+```
+
+This contains all S&P 500 historical data (2000-2025) pre-downloaded and ready to use.
+
+#### Option 2: Download Data Yourself
+
+You can download the data yourself using the provided script, but be aware that Yahoo Finance implements rate limiting that makes bulk downloads challenging:
 
 ```bash
 # Run the data download script to fetch latest S&P 500 data
 python -m src.TradingStrategist.data.download_sp500_data
 ```
 
-This script:
-- Downloads historical data for current S&P 500 stocks from Yahoo Finance
-- Updates existing data files with the latest available data
-- Preserves historical data for stocks that are no longer in the S&P 500
-- Downloads major indices ($SPX, $DJI, $VIX) for comparison
+⚠️ **Important Notes About Yahoo Finance Downloads**:
+- The script will encounter 429 "Too Many Requests" errors due to Yahoo Finance rate limits
+- A complete download may take several hours due to required delays between requests
+- The script includes exponential backoff to handle rate limits automatically
+- Some historical tickers may fail to download as they've been delisted or renamed
 
-> **Note about Delisted Stocks**: Many historical stocks in the dataset may be delisted, acquired, or have changed ticker symbols over time. The script will report these as "failed downloads" or "no data available" - this is normal and won't affect the application's functionality with currently active stocks.
+**Tip**: If you're experiencing excessive rate limiting, try downloading data in smaller batches by modifying the `all_tickers` list in the script.
 
 #### Verifying Data Files
-You can check the status of your data files with:
+After acquiring data through either method, verify your data files:
 
 ```bash
 # Verify data files integrity
