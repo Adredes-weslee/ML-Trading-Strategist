@@ -50,7 +50,7 @@ Before running the application, you should update the stock data to get the late
 
 ```bash
 # Run the data download script to fetch latest S&P 500 data
-python src/TradingStrategist/data/download_sp500_data.py
+python -m src.TradingStrategist.data.download_sp500_data
 ```
 
 This script:
@@ -59,12 +59,14 @@ This script:
 - Preserves historical data for stocks that are no longer in the S&P 500
 - Downloads major indices ($SPX, $DJI, $VIX) for comparison
 
+> **Note about Delisted Stocks**: Many historical stocks in the dataset may be delisted, acquired, or have changed ticker symbols over time. The script will report these as "failed downloads" or "no data available" - this is normal and won't affect the application's functionality with currently active stocks.
+
 #### Verifying Data Files
 You can check the status of your data files with:
 
 ```bash
 # Verify data files integrity
-python src/TradingStrategist/data/check_data.py
+python -m src.TradingStrategist.data.check_data
 ```
 
 This will report on:
