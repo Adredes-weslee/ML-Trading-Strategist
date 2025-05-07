@@ -182,49 +182,64 @@ def calculate_metrics(portfolio_values):
     
     return metrics
 
-def create_benchmark(symbol, start_date, end_date, starting_value, commission, impact):
+def create_benchmark(symbols, start_date, end_date, starting_value, commission, impact, weights=None):
     """
-    Create a benchmark portfolio (buy and hold strategy).
+    Create a benchmark portfolio (buy and hold strategy) for multiple stocks.
     
     Parameters:
     -----------
-    symbol : str
-        Stock symbol
+    symbols : list
+        List of stock symbols
     start_date : datetime
         Start date
     end_date : datetime
-        End date
     starting_value : int
         Starting portfolio value
     commission : float
         Commission per trade
     impact : float
         Market impact per trade
+    weights : dict, optional
+        Dictionary mapping symbols to portfolio weights (must sum to 1.0)
         
     Returns:
     --------
     pd.DataFrame
         DataFrame containing benchmark portfolio values
     """
-    # Get price data
-    dates = pd.date_range(start_date, end_date)
-    prices = get_data([symbol], dates)
+    # Default to equal weights if not specified
+    if weights is None:
+        weight = 1.0 / len(symbols)
+        weights = {symbol: weight for symbol in symbols}
     
-    # Create trades DataFrame for benchmark
-    trades = pd.DataFrame(0, index=prices.index, columns=[symbol])
-    trades.iloc[0] = 1000  # Buy 1000 shares on first day and hold
+    # Get price data for all symbols
+    dates = pd.date_range(start_date, end_date)
+    prices = get_data(symbols, dates)
+    
+    # Create trades DataFrame for benchmark (one-time buy and hold for each stock)
+    trades = pd.DataFrame(0, index=prices.index, columns=symbols)
+    
+    # For each symbol, allocate a portion of the starting value based on weights
+    for symbol in symbols:
+        # Calculate number of shares to buy based on initial price and weight
+        initial_price = prices[symbol].iloc[0]
+        position_value = starting_value * weights[symbol]
+        num_shares = int(position_value / initial_price)  # Round down to whole shares
+        trades.iloc[0][symbol] = num_shares
     
     # Calculate portfolio values
-    benchmark_values = compute_portvals(orders=trades, 
-                                       start_val=starting_value, 
-                                       commission=commission, 
-                                       impact=impact)
+    benchmark_values = compute_portvals(
+        orders=trades, 
+        start_val=starting_value, 
+        commission=commission, 
+        impact=impact
+    )
     
     return benchmark_values
 
-def run_strategy(strategy_type, symbol, train_start_date, train_end_date, 
+def run_strategy(strategy_type, symbols, train_start_date, train_end_date, 
                  test_start_date, test_end_date, starting_value,
-                 commission, impact, **strategy_params):
+                 commission, impact, weights=None, **strategy_params):
     """
     Run a trading strategy and return the portfolio values and metrics.
     
@@ -232,8 +247,8 @@ def run_strategy(strategy_type, symbol, train_start_date, train_end_date,
     -----------
     strategy_type : str
         Type of strategy (manual, tree, qlearn)
-    symbol : str
-        Stock symbol
+    symbols : list
+        List of stock symbols to trade
     train_start_date, train_end_date : datetime
         Training period dates
     test_start_date, test_end_date : datetime
@@ -242,6 +257,8 @@ def run_strategy(strategy_type, symbol, train_start_date, train_end_date,
         Initial portfolio value
     commission, impact : float
         Trading cost parameters
+    weights : dict, optional
+        Dictionary mapping symbols to portfolio weights (must sum to 1.0)
     **strategy_params : dict
         Additional parameters for specific strategies
         
@@ -250,80 +267,185 @@ def run_strategy(strategy_type, symbol, train_start_date, train_end_date,
     tuple
         (portfolio_values, trades, metrics)
     """
-    if strategy_type == 'manual':
-        model = ManualStrategy(
-            verbose=False,
-            **{k: v for k, v in strategy_params.items() if k in [
-                'window_size', 'rsi_window', 'stoch_window', 'cci_window',
-                'buy_threshold', 'sell_threshold', 'position_size'
-            ]}
-        )
-        trades = model.testPolicy(
-            symbol=symbol, 
-            sd=test_start_date, 
-            ed=test_end_date, 
-            sv=starting_value
-        )
+    # Default to equal weights if not specified
+    if weights is None:
+        weight = 1.0 / len(symbols)
+        weights = {symbol: weight for symbol in symbols}
     
-    elif strategy_type == 'tree':
-        model = TreeStrategyLearner(
-            verbose=False,
-            impact=impact,
-            commission=commission,
-            **{k: v for k, v in strategy_params.items() if k in [
-                'window_size', 'buy_threshold', 'sell_threshold',
-                'prediction_days', 'leaf_size', 'bags', 'position_size'
-            ]}
-        )
+    # For single stock strategies, we'll just use the first symbol
+    # This maintains backward compatibility
+    if len(symbols) == 1:
+        symbol = symbols[0]
         
-        # Train the model
-        model.addEvidence(
-            symbol=symbol,
-            sd=train_start_date,
-            ed=train_end_date,
-            sv=starting_value
-        )
+        if strategy_type == 'manual':
+            model = ManualStrategy(
+                verbose=False,
+                **{k: v for k, v in strategy_params.items() if k in [
+                    'window_size', 'rsi_window', 'stoch_window', 'cci_window',
+                    'buy_threshold', 'sell_threshold', 'position_size'
+                ]}
+            )
+            trades = model.testPolicy(
+                symbol=symbol, 
+                sd=test_start_date, 
+                ed=test_end_date, 
+                sv=starting_value
+            )
         
-        # Generate trades
-        trades = model.testPolicy(
-            symbol=symbol,
-            sd=test_start_date,
-            ed=test_end_date,
-            sv=starting_value
-        )
-    
-    elif strategy_type == 'qlearn':
-        model = QStrategyLearner(
-            verbose=False,
-            impact=impact,
-            commission=commission,
-            **{k: v for k, v in strategy_params.items() if k in [
-                'indicator_bins', 'window_size', 'rsi_window', 'position_size',
-                'max_iterations', 'learning_rate', 'discount_factor',
-                'random_action_rate', 'random_action_decay', 'dyna_iterations',
-                'use_bb', 'use_rsi', 'use_macd', 'use_stoch', 'use_cci',
-                'momentum_periods', 'convergence_threshold'
-            ]}
-        )
+        elif strategy_type == 'tree':
+            model = TreeStrategyLearner(
+                verbose=False,
+                impact=impact,
+                commission=commission,
+                **{k: v for k, v in strategy_params.items() if k in [
+                    'window_size', 'buy_threshold', 'sell_threshold',
+                    'prediction_days', 'leaf_size', 'bags', 'position_size'
+                ]}
+            )
+            
+            # Train the model
+            model.addEvidence(
+                symbol=symbol,
+                sd=train_start_date,
+                ed=train_end_date,
+                sv=starting_value
+            )
+            
+            # Generate trades
+            trades = model.testPolicy(
+                symbol=symbol,
+                sd=test_start_date,
+                ed=test_end_date,
+                sv=starting_value
+            )
         
-        # Train the model
-        model.addEvidence(
-            symbol=symbol,
-            sd=train_start_date,
-            ed=train_end_date,
-            sv=starting_value
-        )
+        elif strategy_type == 'qlearn':
+            model = QStrategyLearner(
+                verbose=False,
+                impact=impact,
+                commission=commission,
+                **{k: v for k, v in strategy_params.items() if k in [
+                    'indicator_bins', 'window_size', 'rsi_window', 'position_size',
+                    'max_iterations', 'learning_rate', 'discount_factor',
+                    'random_action_rate', 'random_action_decay', 'dyna_iterations',
+                    'use_bb', 'use_rsi', 'use_macd', 'use_stoch', 'use_cci',
+                    'momentum_periods', 'convergence_threshold'
+                ]}
+            )
+            
+            # Train the model
+            model.addEvidence(
+                symbol=symbol,
+                sd=train_start_date,
+                ed=train_end_date,
+                sv=starting_value
+            )
+            
+            # Generate trades
+            trades = model.testPolicy(
+                symbol=symbol,
+                sd=test_start_date,
+                ed=test_end_date,
+                sv=starting_value
+            )
         
-        # Generate trades
-        trades = model.testPolicy(
-            symbol=symbol,
-            sd=test_start_date,
-            ed=test_end_date,
-            sv=starting_value
-        )
-    
+        else:
+            raise ValueError(f"Unknown strategy type: {strategy_type}")
     else:
-        raise ValueError(f"Unknown strategy type: {strategy_type}")
+        # Portfolio mode - multiple stocks
+        # Get price data for all symbols in the date range
+        dates = pd.date_range(test_start_date, test_end_date)
+        prices = get_data(symbols, dates)
+        
+        # Create an empty trades DataFrame with all symbols
+        trades = pd.DataFrame(0, index=prices.index, columns=symbols)
+        
+        # For each symbol, apply the strategy separately and combine the results
+        for symbol in symbols:
+            # Calculate allocation for this symbol
+            symbol_starting_value = starting_value * weights[symbol]
+            
+            # Run the individual strategy
+            if strategy_type == 'manual':
+                model = ManualStrategy(
+                    verbose=False,
+                    **{k: v for k, v in strategy_params.items() if k in [
+                        'window_size', 'rsi_window', 'stoch_window', 'cci_window',
+                        'buy_threshold', 'sell_threshold', 'position_size'
+                    ]}
+                )
+                symbol_trades = model.testPolicy(
+                    symbol=symbol,
+                    sd=test_start_date,
+                    ed=test_end_date,
+                    sv=symbol_starting_value
+                )
+            
+            elif strategy_type == 'tree':
+                model = TreeStrategyLearner(
+                    verbose=False,
+                    impact=impact,
+                    commission=commission,
+                    **{k: v for k, v in strategy_params.items() if k in [
+                        'window_size', 'buy_threshold', 'sell_threshold',
+                        'prediction_days', 'leaf_size', 'bags', 'position_size'
+                    ]}
+                )
+                
+                # Train the model for this symbol
+                model.addEvidence(
+                    symbol=symbol,
+                    sd=train_start_date,
+                    ed=train_end_date,
+                    sv=symbol_starting_value
+                )
+                
+                # Generate trades for this symbol
+                symbol_trades = model.testPolicy(
+                    symbol=symbol,
+                    sd=test_start_date,
+                    ed=test_end_date,
+                    sv=symbol_starting_value
+                )
+            
+            elif strategy_type == 'qlearn':
+                model = QStrategyLearner(
+                    verbose=False,
+                    impact=impact,
+                    commission=commission,
+                    **{k: v for k, v in strategy_params.items() if k in [
+                        'indicator_bins', 'window_size', 'rsi_window', 'position_size',
+                        'max_iterations', 'learning_rate', 'discount_factor',
+                        'random_action_rate', 'random_action_decay', 'dyna_iterations',
+                        'use_bb', 'use_rsi', 'use_macd', 'use_stoch', 'use_cci',
+                        'momentum_periods', 'convergence_threshold'
+                    ]}
+                )
+                
+                # Train the model for this symbol
+                model.addEvidence(
+                    symbol=symbol,
+                    sd=train_start_date,
+                    ed=train_end_date,
+                    sv=symbol_starting_value
+                )
+                
+                # Generate trades for this symbol
+                symbol_trades = model.testPolicy(
+                    symbol=symbol,
+                    sd=test_start_date,
+                    ed=test_end_date,
+                    sv=symbol_starting_value
+                )
+            
+            else:
+                raise ValueError(f"Unknown strategy type: {strategy_type}")
+            
+            # Copy the trades for this symbol into the combined trades DataFrame
+            # We don't just set trades[symbol] = symbol_trades[symbol] because the indices might not align perfectly
+            for idx in symbol_trades.index:
+                if idx in trades.index:
+                    trades.loc[idx, symbol] = symbol_trades.loc[idx, symbol]
     
     # Compute portfolio values
     portvals = compute_portvals(
@@ -417,12 +539,68 @@ if not symbols:
 
 # Get default symbol from config if available
 default_symbol = "JPM"  # Default in case config doesn't specify
-if use_configs and 'data' in configs and 'symbol' in configs['data']:
-    default_symbol = configs['data']['symbol']
+default_symbols = [default_symbol]  # Default list with one symbol
+if use_configs and 'data' in configs:
+    if 'symbol' in configs['data']:
+        default_symbol = configs['data']['symbol']
+        default_symbols = [default_symbol]
+    elif 'symbols' in configs['data']:  # Support for multiple symbols in config
+        default_symbols = configs['data']['symbols']
 
-# Stock selection
-selected_symbol = st.sidebar.selectbox("Select Stock Symbol", symbols, 
-                                      index=symbols.index(default_symbol) if default_symbol in symbols else 0)
+# Stock selection - modified to support multiple stocks
+st.sidebar.subheader("Stock Selection")
+selection_mode = st.sidebar.radio("Selection Mode", ["Single Stock", "Portfolio (Multiple Stocks)"])
+
+if selection_mode == "Single Stock":
+    selected_symbols = [st.sidebar.selectbox(
+        "Select Stock Symbol", 
+        symbols,
+        index=symbols.index(default_symbol) if default_symbol in symbols else 0
+    )]
+else:
+    # Multi-select for portfolio mode
+    all_selected_symbols = st.sidebar.multiselect(
+        "Select Stock Symbols for Portfolio",
+        symbols,
+        default=default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
+    )
+    
+    if not all_selected_symbols:
+        st.sidebar.warning("Please select at least one stock for your portfolio")
+        selected_symbols = default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
+    else:
+        selected_symbols = all_selected_symbols
+    
+    # Portfolio weights option
+    weight_method = st.sidebar.radio(
+        "Portfolio Weighting",
+        ["Equal Weight", "Custom Weights"],
+        help="Equal weight divides investment equally among stocks. Custom allows specific allocation."
+    )
+    
+    # Custom weights if selected
+    if weight_method == "Custom Weights":
+        st.sidebar.write("Specify allocation percentage for each stock (must sum to 100%)")
+        stock_weights = {}
+        total_weight = 0
+        
+        for symbol in selected_symbols:
+            default_weight = 100 / len(selected_symbols)
+            weight = st.sidebar.slider(f"{symbol} Weight (%)", 
+                                      min_value=0.0, 
+                                      max_value=100.0, 
+                                      value=default_weight,
+                                      step=5.0,
+                                      key=f"weight_{symbol}")
+            stock_weights[symbol] = weight / 100.0  # Convert to decimal
+            total_weight += weight
+        
+        if abs(total_weight - 100) > 0.01:  # Allow small rounding errors
+            st.sidebar.error(f"Weights must sum to 100% (currently {total_weight:.1f}%)")
+    else:
+        # Equal weights
+        weight = 1.0 / len(selected_symbols)
+        stock_weights = {symbol: weight for symbol in selected_symbols}
 
 # Date range selection
 st.sidebar.subheader("Date Range")
@@ -671,19 +849,20 @@ if run_button:
             # Run selected strategies
             if "Benchmark" in selected_strategies:
                 benchmark_values = create_benchmark(
-                    symbol=selected_symbol,
+                    symbols=selected_symbols,
                     start_date=test_start,
                     end_date=test_end,
                     starting_value=starting_value,
                     commission=commission,
-                    impact=impact
+                    impact=impact,
+                    weights=stock_weights if selection_mode == "Portfolio (Multiple Stocks)" else None
                 )
                 results["Benchmark"] = benchmark_values
             
             if "Manual Strategy" in selected_strategies:
                 manual_portvals, manual_trades, manual_metrics = run_strategy(
                     strategy_type='manual',
-                    symbol=selected_symbol,
+                    symbols=selected_symbols,
                     train_start_date=train_start,
                     train_end_date=train_end,
                     test_start_date=test_start,
@@ -691,6 +870,7 @@ if run_button:
                     starting_value=starting_value,
                     commission=commission,
                     impact=impact,
+                    weights=stock_weights if selection_mode == "Portfolio (Multiple Stocks)" else None,
                     **manual_params
                 )
                 results["Manual Strategy"] = manual_portvals
@@ -698,7 +878,7 @@ if run_button:
             if "Tree Strategy Learner" in selected_strategies:
                 tree_portvals, tree_trades, tree_metrics = run_strategy(
                     strategy_type='tree',
-                    symbol=selected_symbol,
+                    symbols=selected_symbols,
                     train_start_date=train_start,
                     train_end_date=train_end,
                     test_start_date=test_start,
@@ -706,6 +886,7 @@ if run_button:
                     starting_value=starting_value,
                     commission=commission,
                     impact=impact,
+                    weights=stock_weights if selection_mode == "Portfolio (Multiple Stocks)" else None,
                     **tree_params
                 )
                 results["Tree Strategy Learner"] = tree_portvals
@@ -713,7 +894,7 @@ if run_button:
             if "Q-Strategy Learner" in selected_strategies:
                 q_portvals, q_trades, q_metrics = run_strategy(
                     strategy_type='qlearn',
-                    symbol=selected_symbol,
+                    symbols=selected_symbols,
                     train_start_date=train_start,
                     train_end_date=train_end,
                     test_start_date=test_start,
@@ -721,13 +902,27 @@ if run_button:
                     starting_value=starting_value,
                     commission=commission,
                     impact=impact,
+                    weights=stock_weights if selection_mode == "Portfolio (Multiple Stocks)" else None,
                     **q_params
                 )
                 results["Q-Strategy Learner"] = q_portvals
             
             # Display performance chart
             st.header("Strategy Performance Comparison")
-            st.markdown(f"**Symbol: {selected_symbol}** | **Test Period: {test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')}**")
+            
+            # Generate title based on single stock or portfolio mode
+            if selection_mode == "Single Stock":
+                st.markdown(f"**Symbol: {selected_symbols[0]}** | **Test Period: {test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')}**")
+            else:
+                st.markdown(f"**Portfolio: {len(selected_symbols)} stocks** | **Test Period: {test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')}**")
+                
+                # Display portfolio composition
+                st.subheader("Portfolio Composition")
+                weights_df = pd.DataFrame({
+                    'Symbol': list(stock_weights.keys()),
+                    'Weight (%)': [f"{w*100:.1f}%" for w in stock_weights.values()]
+                })
+                st.dataframe(weights_df, hide_index=True, width=400)
             
             fig, ax = plt.figure(figsize=(12, 6)), plt.gca()
             
@@ -743,7 +938,11 @@ if run_button:
                 normalized_values = portfolio_values / portfolio_values.iloc[0]
                 ax.plot(normalized_values.index, normalized_values, label=strategy_name, color=colors[strategy_name], linewidth=2)
             
-            plt.title(f"{selected_symbol} Performance Comparison", fontsize=16)
+            if selection_mode == "Single Stock":
+                plt.title(f"{selected_symbols[0]} Performance Comparison", fontsize=16)
+            else:
+                plt.title("Portfolio Performance Comparison", fontsize=16)
+                
             plt.xlabel("Date", fontsize=12)
             plt.ylabel("Normalized Portfolio Value", fontsize=12)
             plt.grid(True, alpha=0.3)
@@ -821,31 +1020,101 @@ if run_button:
 else:
     st.info("Select your strategy parameters and click 'Run Strategies' to see results.")
     
-    # Show data preview
-    st.header(f"Data Preview for {selected_symbol}")
-    
-    try:
-        # Get a sample of the price data
-        preview_start = dt.datetime(2010, 1, 1)  
-        preview_end = dt.datetime(2010, 1, 31)  # Just show a month
-        price_data = get_data([selected_symbol], pd.date_range(preview_start, preview_end))
+    # Show data preview - modified to support multiple stocks
+    if selection_mode == "Single Stock":
+        st.header(f"Data Preview for {selected_symbols[0]}")
         
-        # Plot the price data
-        fig, ax = plt.figure(figsize=(10, 5)), plt.gca()
-        ax.plot(price_data.index, price_data[selected_symbol], label=selected_symbol, linewidth=2)
-        plt.title(f"{selected_symbol} Price (Jan 2010)", fontsize=16)
-        plt.xlabel("Date", fontsize=12)
-        plt.ylabel("Price ($)", fontsize=12)
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=12)
+        try:
+            # Get a sample of the price data
+            preview_start = dt.datetime(2010, 1, 1)  
+            preview_end = dt.datetime(2010, 1, 31)  # Just show a month
+            price_data = get_data([selected_symbols[0]], pd.date_range(preview_start, preview_end))
+            
+            # Plot the price data
+            fig, ax = plt.figure(figsize=(10, 5)), plt.gca()
+            ax.plot(price_data.index, price_data[selected_symbols[0]], label=selected_symbols[0], linewidth=2)
+            plt.title(f"{selected_symbols[0]} Price (Jan 2010)", fontsize=16)
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel("Price ($)", fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.legend(fontsize=12)
+            
+            st.pyplot(fig)
+            
+            # Display the first few rows of data
+            st.subheader("Price Data Sample")
+            st.dataframe(price_data.head(10), use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading data for {selected_symbols[0]}: {str(e)}")
+    else:
+        # Portfolio mode - show all selected stocks
+        st.header(f"Portfolio Data Preview ({len(selected_symbols)} stocks)")
         
-        st.pyplot(fig)
-        
-        # Display the first few rows of data
-        st.subheader("Price Data Sample")
-        st.dataframe(price_data.head(10), use_container_width=True)
-    except Exception as e:
-        st.error(f"Error loading data for {selected_symbol}: {str(e)}")
+        try:
+            # Get a sample of price data for all selected symbols
+            preview_start = dt.datetime(2010, 1, 1)
+            preview_end = dt.datetime(2010, 1, 31)  # Just show a month
+            price_data = get_data(selected_symbols, pd.date_range(preview_start, preview_end))
+            
+            # Plot price data for all stocks
+            fig, ax = plt.figure(figsize=(12, 6)), plt.gca()
+            
+            # Use a color cycle for multiple stocks
+            colors = plt.cm.tab10(np.linspace(0, 1, len(selected_symbols)))
+            
+            for i, symbol in enumerate(selected_symbols):
+                ax.plot(price_data.index, price_data[symbol] / price_data[symbol].iloc[0], 
+                        label=symbol, color=colors[i], linewidth=1.5)
+            
+            plt.title("Normalized Stock Prices (Jan 2010)", fontsize=16)
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel("Normalized Price", fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.legend(fontsize=10, loc="best")
+            
+            st.pyplot(fig)
+            
+            # Display correlation matrix
+            if len(selected_symbols) > 1:
+                st.subheader("Stock Correlation Matrix")
+                daily_returns = price_data.pct_change().dropna()
+                corr_matrix = daily_returns.corr()
+                
+                # Create a heatmap for the correlation matrix
+                fig, ax = plt.figure(figsize=(10, 8)), plt.gca()
+                im = ax.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
+                plt.colorbar(im, ax=ax)
+                
+                # Add correlation values
+                for i in range(len(corr_matrix)):
+                    for j in range(len(corr_matrix)):
+                        text = ax.text(j, i, f"{corr_matrix.iloc[i, j]:.2f}", 
+                                      ha="center", va="center", color="black")
+                
+                # Set ticks and labels
+                ax.set_xticks(np.arange(len(corr_matrix)))
+                ax.set_yticks(np.arange(len(corr_matrix)))
+                ax.set_xticklabels(corr_matrix.columns)
+                ax.set_yticklabels(corr_matrix.index)
+                plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+                
+                plt.title("Stock Correlation Matrix")
+                st.pyplot(fig)
+                
+                # Display portfolio weights
+                st.subheader("Portfolio Allocation")
+                weights_df = pd.DataFrame({
+                    'Symbol': list(stock_weights.keys()),
+                    'Weight (%)': [f"{w*100:.1f}%" for w in stock_weights.values()]
+                })
+                st.dataframe(weights_df, hide_index=True, use_container_width=True)
+            
+            # Display the first few rows of data
+            st.subheader("Price Data Sample")
+            st.dataframe(price_data.head(10), use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"Error loading data for the selected portfolio: {str(e)}")
 
 # Add footer
 st.markdown("---")
