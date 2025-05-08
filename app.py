@@ -169,14 +169,15 @@ def calculate_metrics(portfolio_values):
         Dictionary containing performance metrics
     """
     # Calculate daily returns
-    daily_returns = portfolio_values.pct_change().dropna()
+    # Fix the pct_change() FutureWarning by specifying fill_method=None
+    daily_returns = portfolio_values.pct_change(fill_method=None).dropna()
     
-    # Calculate metrics
+    # Calculate metrics - fix Series to float conversions
     metrics = {
-        'cumulative_return': float((portfolio_values.iloc[-1] / portfolio_values.iloc[0]) - 1),
-        'average_daily_return': float(daily_returns.mean()),
-        'std_daily_return': float(daily_returns.std()),
-        'sharpe_ratio': float(np.sqrt(252) * daily_returns.mean() / daily_returns.std() if daily_returns.std().iloc[0] > 0 else 0),
+        'cumulative_return': float((portfolio_values.iloc[-1].iloc[0] / portfolio_values.iloc[0].iloc[0]) - 1),
+        'average_daily_return': float(daily_returns.mean().iloc[0]),
+        'std_daily_return': float(daily_returns.std().iloc[0]),
+        'sharpe_ratio': float(np.sqrt(252) * daily_returns.mean().iloc[0] / daily_returns.std().iloc[0] if daily_returns.std().iloc[0] > 0 else 0),
         'final_value': float(portfolio_values.iloc[-1].iloc[0])
     }
     
@@ -223,9 +224,17 @@ def create_benchmark(symbols, start_date, end_date, starting_value, commission, 
     for symbol in symbols:
         # Calculate number of shares to buy based on initial price and weight
         initial_price = prices[symbol].iloc[0]
+        
+        # Check for NaN values in initial price (fix for ValueError)
+        if pd.isna(initial_price):
+            # Skip this symbol if price data is not available
+            continue
+            
         position_value = starting_value * weights[symbol]
         num_shares = int(position_value / initial_price)  # Round down to whole shares
-        trades.iloc[0][symbol] = num_shares
+        
+        # Use .loc for assignment to avoid ChainedAssignmentError
+        trades.loc[trades.index[0], symbol] = num_shares
     
     # Calculate portfolio values
     benchmark_values = compute_portvals(
