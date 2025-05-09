@@ -12,4 +12,4 @@ dependencies:
   - scipy=1.15.2
   - streamlit=1.45.0
   - yfinance=0.2.57
-  - pip
+  - pip=25.1.1
