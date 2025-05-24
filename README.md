@@ -20,7 +20,7 @@
 
 **An enterprise-grade machine learning framework for quantitative trading strategy development, backtesting, and portfolio optimization**
 
-[🚀 Live Demo](YOUR_STREAMLIT_DEPLOYMENT_URL) • [📖 Documentation](#-documentation) • [💻 Installation](#-installation) • [🔧 Configuration](#-configuration)
+[🚀 Live Demo]([YOUR_STREAMLIT_DEPLOYMENT_URL](https://adredes-weslee-ml-trading-strategist-app-pu7qym.streamlit.app/)) • [📖 Documentation](#-documentation) • [💻 Installation](#-installation) • [🔧 Configuration](#-configuration)
 
 </div>
 
@@ -60,7 +60,7 @@ TradingStrategist is a comprehensive, production-ready machine learning platform
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/ML-Trading-Strategist.git
+git clone https://github.com/Adredes-weslee/ML-Trading-Strategist.git
 cd ML-Trading-Strategist
 
 # Create and activate conda environment
@@ -75,7 +75,7 @@ python -c "import streamlit; print('✅ Installation successful!')"
 
 ```bash
 # Clone and navigate
-git clone https://github.com/your-username/ML-Trading-Strategist.git
+git clone https://github.com/Adredes-weslee/ML-Trading-Strategist.git
 cd ML-Trading-Strategist
 
 # Install dependencies
@@ -507,7 +507,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/your-username/ML-Trading-Strategist.git
+git clone https://github.com/Adredes-weslee/ML-Trading-Strategist.git
 cd ML-Trading-Strategist
 
 # Create development environment
@@ -549,6 +549,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for the quantitative trading community**
 
-[🏠 Home](https://github.com/your-username/ML-Trading-Strategist) • [📖 Wiki](https://github.com/your-username/ML-Trading-Strategist/wiki) • [🐛 Issues](https://github.com/your-username/ML-Trading-Strategist/issues) • [💡 Discussions](https://github.com/your-username/ML-Trading-Strategist/discussions)
+[🏠 Home](https://github.com/Adredes-weslee/ML-Trading-Strategist) • [📖 Wiki](https://github.com/Adredes-weslee/ML-Trading-Strategist/wiki) • [🐛 Issues](https://github.com/Adredes-weslee/ML-Trading-Strategist/issues) • [💡 Discussions](https://github.com/Adredes-weslee/ML-Trading-Strategist/discussions)
 
 </div>
