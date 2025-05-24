@@ -1,5 +1,14 @@
 # TradingStrategist 📈
 
+<div align="center">
+
+[![Python](https://img.shields.io/badge/Python-3.11.0-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.45.0-FF4B4B.svg)](https://streamlit.io/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.6.1-orange.svg)](https://scikit-learn.org/)
+[![Pandas](https://img.shields.io/badge/Pandas-2.2.3-150458.svg)](https://pandas.pydata.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-2.2.5-013243.svg)](https://numpy.org/)
+
 ```
 ████████╗██████╗  █████╗ ██████╗ ██╗███╗   ██╗ ██████╗     ███████╗████████╗██████╗  █████╗ ████████╗███████╗ ██████╗ ██╗███████╗████████╗
 ╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║██╔════╝     ██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝
@@ -9,411 +18,537 @@
    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝     ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝   
 ```
 
-> A modular machine learning framework for algorithmic trading strategy development and backtesting with portfolio optimization support
+**An enterprise-grade machine learning framework for quantitative trading strategy development, backtesting, and portfolio optimization**
 
-## 📋 About The Project
+[🚀 Live Demo](YOUR_STREAMLIT_DEPLOYMENT_URL) • [📖 Documentation](#-documentation) • [💻 Installation](#-installation) • [🔧 Configuration](#-configuration)
 
-TradingStrategist is an end-to-end machine learning framework designed for developing, testing, and comparing various algorithmic trading strategies. The platform provides a seamless environment for traders and researchers to experiment with different approaches to market prediction and strategy optimization.
+</div>
 
-### Key Capabilities
-- **Multi-strategy comparison** - Test different approaches side-by-side
-- **Portfolio management** - Optimize across multiple stocks with custom weighting
-- **Realistic backtesting** - Account for trading costs, slippage, and market impact
-- **Interactive visualization** - Analyze performance with intuitive charts and metrics
-- **Modular architecture** - Extend with your own indicators and strategies
+---
 
-## 🚀 Getting Started
+## 🎯 Overview
+
+TradingStrategist is a comprehensive, production-ready machine learning platform that enables traders, researchers, and quantitative analysts to develop, test, and deploy sophisticated algorithmic trading strategies. Built with a modular architecture and powered by modern ML techniques, it provides everything needed for end-to-end quantitative strategy development.
+
+### 🌟 Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **🤖 Multi-Strategy Framework** | Rule-based, Machine Learning (Random Forest), and Reinforcement Learning (Q-Learning) approaches |
+| **📊 Advanced Technical Analysis** | 10+ built-in indicators with configurable parameters and custom indicator support |
+| **💼 Portfolio Management** | Multi-asset portfolio optimization with custom weighting and correlation analysis |
+| **🎯 Realistic Backtesting** | Multiple transaction cost models, market impact simulation, and slippage modeling |
+| **📈 Performance Analytics** | Comprehensive metrics including Sharpe ratio, drawdown analysis, and risk-adjusted returns |
+| **🖥️ Interactive Web Interface** | Modern Streamlit-powered dashboard for strategy development and analysis |
+| **⚙️ Configuration-Driven** | YAML-based configuration system for reproducible research and parameter management |
+| **🔧 Extensible Architecture** | Plugin-based design for custom strategies, indicators, and cost models |
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+ 
-- Conda package manager
-- Git (for cloning the repository)
 
-### Installation
+- **Python 3.11+** (Recommended: 3.11.0)
+- **Conda** or **pip** package manager
+- **Git** for version control
+- **8GB+ RAM** (for large dataset processing)
+
+### 🐍 Installation
+
+#### Option 1: Conda Environment (Recommended)
 
 ```bash
 # Clone the repository
-git clone https://github.com/Adredes-weslee/ML-Trading-Strategist.git
+git clone https://github.com/your-username/ML-Trading-Strategist.git
 cd ML-Trading-Strategist
 
 # Create and activate conda environment
 conda env create -f environment.yaml
 conda activate trading-strategist
+
+# Verify installation
+python -c "import streamlit; print('✅ Installation successful!')"
 ```
 
-### Data Management
-
-TradingStrategist requires historical stock data to function properly. You have two options for acquiring this data:
-
-#### Option 1: Use Pre-downloaded Data (Recommended)
-The easiest way to get started is to use our pre-packaged dataset from GitHub:
+#### Option 2: Pip Installation
 
 ```bash
-# Clone the data repository (one-time step)
+# Clone and navigate
+git clone https://github.com/your-username/ML-Trading-Strategist.git
+cd ML-Trading-Strategist
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Verify installation
+python -c "import streamlit; print('✅ Installation successful!')"
+```
+
+### 📊 Data Setup
+
+TradingStrategist requires historical stock price data. Choose your preferred method:
+
+#### 🎯 Option 1: Pre-downloaded Dataset (Fastest)
+
+```bash
+# Download complete S&P 500 dataset (2000-2025)
 git clone https://github.com/Adredes-weslee/ML-Trading-Strategist-Data.git data
 
-# Or if you already have a data folder, update it
-cd data
-git pull origin main
-cd ..
-```
-
-This contains all S&P 500 historical data (2000-2025) pre-downloaded and ready to use.
-
-#### Option 2: Download Data Yourself
-
-You can download the data yourself using the provided script, but be aware that Yahoo Finance implements rate limiting that makes bulk downloads challenging:
-
-```bash
-# Run the data download script to fetch latest S&P 500 data
-python -m src.TradingStrategist.data.download_sp500_data
-```
-
-⚠️ **Important Notes About Yahoo Finance Downloads**:
-- The script will encounter 429 "Too Many Requests" errors due to Yahoo Finance rate limits
-- A complete download may take several hours due to required delays between requests
-- The script includes exponential backoff to handle rate limits automatically
-- Some historical tickers may fail to download as they've been delisted or renamed
-
-**Tip**: If you're experiencing excessive rate limiting, try downloading data in smaller batches by modifying the `all_tickers` list in the script.
-
-#### Verifying Data Files
-After acquiring data through either method, verify your data files:
-
-```bash
-# Verify data files integrity
+# Verify data integrity
 python -m src.TradingStrategist.data.check_data
 ```
 
-This will report on:
-- Available data files and their sizes
-- Required files that may be missing
-- Data format issues that could affect application performance
-
-### Running the Application
-
-Simply execute the Streamlit application directly:
+#### 🔄 Option 2: Fresh Data Download
 
 ```bash
-# Run the Streamlit application
-streamlit run app.py
+# Download latest data from Yahoo Finance
+python -m src.TradingStrategist.data.download_sp500_data
+
+# Note: May take 2-4 hours due to rate limiting
 ```
 
-The application will open in your default web browser at http://localhost:8501
+### 🖥️ Launch Application
+
+```bash
+# Start the Streamlit dashboard
+streamlit run app.py
+
+# Open browser to: http://localhost:8501
+```
+
+---
 
 ## 🧠 Trading Strategies
 
-TradingStrategist implements three distinct algorithmic trading approaches plus a benchmark strategy:
+TradingStrategist implements four distinct algorithmic approaches, each designed for different market conditions and risk profiles:
 
-### 0. Benchmark Strategy
-A simple buy-and-hold approach used as a baseline for comparison:
-- **Single Stock Mode**: Buys a fixed amount (default 1000 shares) on day one and holds until the end
-- **Portfolio Mode**: Buys and holds multiple stocks according to the specified weights
-  - With equal weights: Divides capital equally among all selected stocks
-  - With custom weights: Allocates capital according to the specified percentage for each stock
+### 📊 Benchmark Strategy
+- **Type**: Passive Investment
+- **Approach**: Buy-and-hold baseline for performance comparison
+- **Use Case**: Market index tracking and strategy benchmarking
+- **Features**: Single stock or portfolio allocation with custom weighting
 
-### 1. Manual Strategy
-A rules-based approach using technical indicators with configurable parameters:
-- **Window Sizes** - Control the lookback period for indicators
-- **Thresholds** - Set buy/sell signal levels
-- **Indicators** - RSI, Bollinger Bands, MACD, Stochastic, CCI
+### 🔧 Manual Strategy
+- **Type**: Rule-Based Technical Analysis
+- **Approach**: Multi-indicator voting system with configurable thresholds
+- **Indicators**: Bollinger Bands, RSI, MACD, Stochastic Oscillator, CCI
+- **Use Case**: Traditional technical analysis with systematic rule implementation
+- **Features**: Customizable voting weights and signal aggregation
 
-### 2. Tree Strategy Learner
-A machine learning approach using Random Forest ensemble techniques:
-- **Prediction Days** - Future period to predict returns
-- **Leaf Size** - Controls tree complexity
-- **Bags** - Number of trees in the ensemble
-- **Position Size** - Trading size in shares
+### 🌳 Tree Strategy Learner
+- **Type**: Supervised Machine Learning
+- **Approach**: Ensemble Random Forest with bagged decision trees
+- **Features**: 
+  - Technical indicators + multi-period momentum features
+  - Configurable prediction horizons (1-20 days)
+  - Bootstrap aggregation for robust predictions
+- **Use Case**: Pattern recognition in historical price movements
 
-### 3. Q-Strategy Learner
-A reinforcement learning approach using Q-Learning:
-- **Indicator Bins** - Discretization granularity for state space
-- **Learning Parameters** - Learning rate, discount factor, exploration rate
-- **Dyna-Q** - Model-based planning iterations
-- **Indicator Selection** - Choose which indicators to include in the state
+### 🎮 Q-Strategy Learner
+- **Type**: Reinforcement Learning
+- **Approach**: Q-Learning with discretized state space
+- **Features**:
+  - Dynamic state representation from technical indicators
+  - Configurable exploration vs exploitation
+  - Dyna-Q model-based planning
+  - Reward optimization based on risk-adjusted returns
+- **Use Case**: Adaptive strategies that learn from market feedback
 
-### Portfolio Management
-The latest version supports portfolio-based trading with:
-- **Multiple Stock Selection** - Trade across a collection of stocks
-- **Custom Weighting** - Allocate capital by percentage across different assets
-- **Correlation Analysis** - Visual tools for understanding inter-asset relationships
+---
 
-## 📊 System Architecture
+## 🏗️ System Architecture
 
 ```mermaid
-graph TD
-    A[User Interface - Streamlit] --> B[Strategy Configuration]
-    A --> C[Data Loading]
-    C --> D[Data Preprocessing]
-    B --> E[Strategy Selection]
+graph TB
+    subgraph "User Interface Layer"
+        A[Streamlit Dashboard]
+        B[Configuration Manager]
+    end
     
-    E -->|Manual| F[Manual Strategy]
-    E -->|Tree| G[Tree Strategy Learner]
-    E -->|Q-Learning| H[Q-Strategy Learner]
+    subgraph "Strategy Layer"
+        C[Manual Strategy]
+        D[Tree Strategy Learner]
+        E[Q-Strategy Learner]
+        F[Benchmark Strategy]
+    end
     
-    F --> I[Technical Indicators]
-    G --> I
+    subgraph "Core Engine"
+        G[Technical Indicators]
+        H[Market Simulator]
+        I[Portfolio Manager]
+    end
+    
+    subgraph "Data Layer"
+        J[Data Loader]
+        K[Historical Prices]
+        L[Performance Metrics]
+    end
+    
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+    
+    C --> G
+    D --> G
+    E --> G
+    
+    G --> H
     H --> I
+    I --> L
     
-    F --> J[Trade Signal Generation]
-    G --> J
-    H --> J
-    
-    J --> K[Market Simulator]
-    K --> L[Performance Metrics]
-    L --> M[Visualization]
-    M --> A
+    J --> K
+    K --> G
+    L --> A
 ```
 
-## 🔄 Execution Flow
-
-### Basic Execution Flow
-1. **User selects parameters** in the Streamlit interface
-2. **Historical data is loaded** for the selected stocks and time periods
-3. **Strategy training occurs** (for ML-based strategies) using the training period data
-4. **Trading signals are generated** for the test period
-5. **Market simulator computes** portfolio values accounting for trading costs
-6. **Performance metrics are calculated** and displayed
-7. **Results are visualized** for strategy comparison
-
-### Detailed Execution Flow with Components
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  User Interface │     │  Configuration  │     │   Data Sources  │
-│   (Streamlit)   │────▶│    Manager      │────▶│   (CSV files)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                                               │
-         │                                               ▼
-         │                                      ┌─────────────────┐
-         │                                      │  Data Loader &  │
-         │                                      │  Preprocessor   │
-         │                                      └─────────────────┘
-         │                                               │
-         ▼                                               ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    Strategy     │     │   Technical     │     │    Portfolio    │
-│    Selection    │────▶│   Indicators    │────▶│   Constructor   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                                               │
-         ▼                                               │
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Manual Rules  │     │  Tree Strategy  │     │  Q-Learning     │
-│     Strategy    │     │     Learner     │     │    Strategy     │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                      │                       │
-         └──────────────────────┼───────────────────────┘
-                                │
-                                ▼
-                      ┌─────────────────┐     ┌─────────────────┐
-                      │ Trading Signal  │     │     Market      │
-                      │  Generation     │────▶│    Simulator    │
-                      └─────────────────┘     └─────────────────┘
-                                                       │
-                                                       ▼
-                      ┌─────────────────┐     ┌─────────────────┐
-                      │  Visualization  │◀────│   Performance   │
-                      │     Engine      │     │     Metrics     │
-                      └─────────────────┘     └─────────────────┘
-```
-
-## 🔧 Configuration Parameters
-
-### Strategy Configuration
-
-#### Manual Strategy Parameters
-| Parameter | Description | Typical Range |
-|-----------|-------------|---------------|
-| Window Size | Lookback period for indicators | 5-50 days |
-| RSI Window | Period for Relative Strength Index | 5-30 days |
-| Buy Threshold | Signal threshold for buy decisions | 0.01-0.10 |
-| Sell Threshold | Signal threshold for sell decisions | -0.10-(-0.01) |
-| Position Size | Number of shares per trade | 100-10000 shares |
-
-#### Tree Strategy Parameters
-| Parameter | Description | Typical Range |
-|-----------|-------------|---------------|
-| Window Size | Lookback period for features | 5-50 days |
-| Buy Threshold | Return threshold for buy label | 0.01-0.10 |
-| Sell Threshold | Return threshold for sell label | -0.10-(-0.01) |
-| Prediction Days | Days ahead to predict for labels | 1-20 days |
-| Leaf Size | Minimum samples per leaf | 1-20 samples |
-| Bags | Number of trees in ensemble | 5-50 trees |
-| Position Size | Number of shares per trade | 100-10000 shares |
-
-#### Q-Strategy Parameters
-| Parameter | Description | Typical Range |
-|-----------|-------------|---------------|
-| Indicator Bins | Number of discrete states per indicator | 5-20 bins |
-| Window Size | Lookback period for indicators | 5-50 days |
-| Position Size | Number of shares per trade | 100-10000 shares |
-| Learning Rate | Step size for Q-value updates | 0.05-0.50 |
-| Discount Factor | Weight for future rewards | 0.50-1.00 |
-| Random Action Rate | Initial exploration probability | 0.10-1.00 |
-| Random Action Decay | Decay rate for exploration | 0.90-0.99 |
-| Dyna-Q Iterations | Model-based planning steps | 0-50 iterations |
-
-### Simulation Parameters
-| Parameter | Description | Typical Range |
-|-----------|-------------|---------------|
-| Starting Portfolio Value | Initial capital | $1,000-$1,000,000 |
-| Commission | Fixed cost per trade | $0.00-$50.00 |
-| Market Impact | Price impact as percentage | 0.000-0.050 |
+---
 
 ## 📁 Project Structure
 
 ```
-├── app.py                 # Streamlit application
-├── environment.yaml       # Conda environment specification
-├── README.md              # Project documentation
+ML-Trading-Strategist/
 │
-├── configs/               # YAML configuration files
-│   ├── data.yaml          # Data source configuration
-│   ├── indicators.yaml    # Technical indicators parameters
-│   ├── manual_strategy_config.yaml # Manual strategy settings
-│   ├── market_sim.yaml    # Market simulator parameters
-│   ├── qstrategy.yaml     # Q-Learning strategy settings
-│   └── tree_strategy.yaml # Decision tree strategy settings
+├── 📱 app.py                          # Streamlit web application
+├── 🐍 environment.yaml                # Conda environment specification  
+├── 📋 requirements.txt                # Python dependencies
+├── 📖 README.md                       # Project documentation
 │
-├── data/                  # Stock price data CSV files
-│   ├── $DJI.csv           # Dow Jones Industrial Average
-│   ├── $SPX.csv           # S&P 500 Index
-│   ├── $VIX.csv           # Volatility Index
-│   └── *.csv              # Individual stock data (AAPL, MSFT, etc.)
+├── ⚙️ configs/                        # Strategy configuration files
+│   ├── data.yaml                      # Data source settings
+│   ├── indicators.yaml                # Technical indicator parameters
+│   ├── manual_strategy_config.yaml    # Rule-based strategy settings
+│   ├── market_sim.yaml                # Market simulation parameters
+│   ├── qstrategy.yaml                 # Q-Learning configuration
+│   └── tree_strategy.yaml             # Random Forest settings
 │
-└── src/                   # TradingStrategist implementation
-    └── TradingStrategist/
-        ├── data/          # Data loading and preprocessing
-        ├── indicators/    # Technical indicator implementations
-        ├── models/        # Strategy implementations
-        │   ├── ManualStrategy.py
-        │   ├── TreeStrategyLearner.py
-        │   └── QStrategyLearner.py
-        ├── simulation/    # Market simulator
-        └── utils/         # Helper utilities
+├── 📊 data/                           # Historical stock price data
+│   ├── SPY.csv                        # S&P 500 ETF (benchmark)
+│   ├── AAPL.csv, MSFT.csv, ...       # Individual stock data
+│   └── $DJI.csv, $SPX.csv, $VIX.csv  # Market indices
+│
+├── 🏗️ src/TradingStrategist/           # Core framework implementation
+│   ├── 📈 models/                     # Trading strategy implementations
+│   │   ├── ManualStrategy.py          # Rule-based technical strategy
+│   │   ├── TreeStrategyLearner.py     # Random Forest ML strategy
+│   │   ├── QStrategyLearner.py        # Reinforcement learning strategy
+│   │   ├── BagLearner.py              # Bootstrap aggregation ensemble
+│   │   ├── RTLearner.py               # Random tree implementation
+│   │   └── QLearner.py                # Q-Learning algorithm
+│   │
+│   ├── 📊 indicators/                 # Technical indicator library
+│   │   └── technical.py               # Complete indicator implementations
+│   │
+│   ├── 🎯 simulation/                 # Market simulation engine
+│   │   └── market_sim.py              # Portfolio simulation with costs
+│   │
+│   ├── 💾 data/                       # Data management utilities
+│   │   ├── loader.py                  # Price data loading and preprocessing
+│   │   ├── download_sp500_data.py     # Automated data acquisition
+│   │   └── check_data.py              # Data integrity verification
+│   │
+│   ├── 🔧 utils/                      # Helper utilities
+│   │   └── helpers.py                 # Configuration and path management
+│   │
+│   ├── 📊 evaluate.py                 # Strategy evaluation and comparison
+│   └── 🎓 train.py                    # Model training interface
+│
+├── 📈 output/                         # Generated reports and visualizations
+├── 🧪 tests/                          # Unit tests (development)
+└── 🔧 static/                         # Static assets (development)
 ```
 
-## 🔬 Advanced Usage
+---
 
-### Programmatic Usage
-For advanced users or researchers who want to extend the framework:
+## ⚙️ Configuration
+
+### 📊 Strategy Parameters
+
+#### Manual Strategy Configuration
+```yaml
+manual_strategy:
+  window_size: 20                    # Lookback period for indicators
+  rsi_window: 14                     # RSI calculation period
+  buy_threshold: 0.02                # Signal strength for buy decisions  
+  sell_threshold: -0.02              # Signal strength for sell decisions
+  position_size: 1000                # Shares per trade
+  indicator_thresholds:
+    rsi_upper: 70                    # RSI overbought level
+    rsi_lower: 30                    # RSI oversold level
+    min_vote_buy: 3                  # Minimum indicators for buy signal
+    min_vote_sell: 3                 # Minimum indicators for sell signal
+```
+
+#### Tree Strategy Configuration
+```yaml
+tree_strategy_learner:
+  leaf_size: 5                       # Minimum samples per tree leaf
+  bags: 20                           # Number of trees in ensemble
+  window_size: 20                    # Feature lookback window
+  buy_threshold: 0.02                # Return threshold for buy label
+  sell_threshold: -0.02              # Return threshold for sell label
+  prediction_days: 5                 # Future prediction horizon
+  momentum_periods: [3, 5, 10]       # Multi-timeframe momentum features
+```
+
+#### Q-Learning Strategy Configuration
+```yaml
+q_strategy_learner:
+  indicator_bins: 10                 # State space discretization
+  learning_rate: 0.2                 # Q-value update step size
+  discount_factor: 0.9               # Future reward weight
+  random_action_rate: 0.5            # Initial exploration rate
+  random_action_decay: 0.99          # Exploration decay rate
+  dyna_iterations: 10                # Model-based planning steps
+  max_iterations: 100                # Training episode limit
+```
+
+### 💰 Market Simulation Parameters
+```yaml
+trading:
+  commission: 9.95                   # Fixed cost per trade
+  impact: 0.005                      # Market impact percentage
+  
+portfolio:
+  starting_value: 100000             # Initial capital
+  max_positions: 1000                # Maximum position size
+  allow_short: true                  # Enable short selling
+```
+
+---
+
+## 🎯 Advanced Usage
+
+### 🔬 Programmatic API
 
 ```python
-# Example: Using the TreeStrategyLearner programmatically
 from src.TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
+from src.TradingStrategist.simulation.market_sim import compute_portvals
 import datetime as dt
 
-# Create and train a model
-learner = TreeStrategyLearner(leaf_size=5, bags=20)
+# Initialize and train strategy
+learner = TreeStrategyLearner(
+    leaf_size=5, 
+    bags=20, 
+    buy_threshold=0.02,
+    sell_threshold=-0.02
+)
+
+# Train on historical data
 learner.addEvidence(
     symbol="AAPL",
-    sd=dt.datetime(2008, 1, 1),
-    ed=dt.datetime(2009, 12, 31),
+    sd=dt.datetime(2020, 1, 1),
+    ed=dt.datetime(2022, 12, 31),
     sv=100000
 )
 
 # Generate trading signals
 trades = learner.testPolicy(
     symbol="AAPL",
-    sd=dt.datetime(2010, 1, 1),
-    ed=dt.datetime(2010, 12, 31)
+    sd=dt.datetime(2023, 1, 1),
+    ed=dt.datetime(2023, 12, 31)
 )
 
-# Simulate market with the generated trades
-from src.TradingStrategist.simulation.market_sim import compute_portvals
-portfolio_values = compute_portvals(orders=trades, start_val=100000, commission=9.95, impact=0.005)
-
-# Calculate performance metrics
-from src.TradingStrategist.simulation.market_sim import compute_portfolio_stats
-sharpe_ratio, cum_ret, avg_daily_ret, std_daily_ret = compute_portfolio_stats(portfolio_values)
-```
-
-### Portfolio Trading Example
-
-```python
-# Example: Creating a portfolio strategy
-import pandas as pd
-import datetime as dt
-from src.TradingStrategist.models.TreeStrategyLearner import TreeStrategyLearner
-from src.TradingStrategist.simulation.market_sim import compute_portvals
-
-# Portfolio composition
-symbols = ["AAPL", "MSFT", "GOOG", "AMZN"]
-weights = {"AAPL": 0.3, "MSFT": 0.3, "GOOG": 0.2, "AMZN": 0.2}
-
-# Trading dates
-train_start = dt.datetime(2008, 1, 1)
-train_end = dt.datetime(2009, 12, 31)
-test_start = dt.datetime(2010, 1, 1)
-test_end = dt.datetime(2010, 12, 31)
-
-# Starting capital
-starting_value = 100000
-
-# Create a combined trades DataFrame
-from src.TradingStrategist.data.loader import get_data
-prices = get_data(symbols, pd.date_range(test_start, test_end))
-all_trades = pd.DataFrame(0, index=prices.index, columns=symbols)
-
-# Apply strategy to each symbol
-for symbol in symbols:
-    # Allocate capital based on weight
-    symbol_value = starting_value * weights[symbol]
-    
-    # Create and train strategy
-    learner = TreeStrategyLearner(leaf_size=5, bags=20)
-    learner.addEvidence(symbol=symbol, sd=train_start, ed=train_end, sv=symbol_value)
-    
-    # Generate trades
-    trades = learner.testPolicy(symbol=symbol, sd=test_start, ed=test_end)
-    
-    # Add to combined trades
-    all_trades[symbol] = trades[symbol]
-
-# Compute overall portfolio performance
+# Simulate portfolio performance
 portfolio_values = compute_portvals(
-    orders=all_trades,
-    start_val=starting_value,
+    orders=trades,
+    start_val=100000,
     commission=9.95,
     impact=0.005
 )
 
+# Calculate performance metrics
+from src.TradingStrategist.simulation.market_sim import compute_portfolio_stats
+sharpe, cum_ret, avg_ret, std_ret = compute_portfolio_stats(portfolio_values)
+
+print(f"Sharpe Ratio: {sharpe:.3f}")
+print(f"Cumulative Return: {cum_ret:.2%}")
 print(f"Final Portfolio Value: ${portfolio_values.iloc[-1].values[0]:,.2f}")
 ```
 
-## 📈 Performance Metrics
+### 🎯 Multi-Asset Portfolio Strategy
 
-The platform evaluates trading strategies using these key metrics:
+```python
+import pandas as pd
+from src.TradingStrategist.data.loader import get_data
 
-| Metric | Description |
-|--------|-------------|
-| **Cumulative Return** | Total percentage return over the entire period |
-| **Average Daily Return** | Mean of daily percentage returns |
-| **Std Dev Daily Return** | Standard deviation of daily returns (volatility) |
-| **Sharpe Ratio** | Risk-adjusted return (higher is better) |
-| **Number of Trades** | Total trades executed by the strategy |
-| **Trades per Month** | Average trading frequency |
+# Define portfolio composition
+symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+weights = {"AAPL": 0.25, "MSFT": 0.25, "GOOGL": 0.20, "AMZN": 0.15, "TSLA": 0.15}
 
-## 🔄 Extending the Framework
+# Load price data
+dates = pd.date_range("2023-01-01", "2023-12-31")
+prices = get_data(symbols, dates)
 
-### Adding a New Strategy
-1. Create a new strategy class in `src/TradingStrategist/models/`
-2. Implement the required methods:
-   - `__init__()` for initialization and parameters
-   - `addEvidence()` for training (if applicable)
-   - `testPolicy()` for generating trades
-3. Add the strategy to the Streamlit interface in `app.py`
+# Initialize combined trades DataFrame
+all_trades = pd.DataFrame(0, index=prices.index, columns=symbols)
 
-### Adding New Technical Indicators
-1. Add your indicator implementation to `src/TradingStrategist/indicators/technical.py`
-2. Make sure your indicator handles NaN values and edge cases
-3. Update the relevant strategy classes to use your new indicator
+# Apply strategy to each asset
+for symbol in symbols:
+    symbol_capital = 100000 * weights[symbol]
+    
+    # Train individual strategy
+    learner = TreeStrategyLearner(leaf_size=5, bags=20)
+    learner.addEvidence(symbol=symbol, sd=train_start, ed=train_end, sv=symbol_capital)
+    
+    # Generate trades
+    symbol_trades = learner.testPolicy(symbol=symbol, sd=test_start, ed=test_end)
+    all_trades[symbol] = symbol_trades[symbol]
+
+# Compute portfolio performance
+portfolio_performance = compute_portvals(
+    orders=all_trades,
+    start_val=100000,
+    commission=9.95,
+    impact=0.005
+)
+```
+
+### 🎛️ Command-Line Training Interface
+
+```bash
+# Train Tree Strategy with custom configuration
+python -m src.TradingStrategist.train --config configs/tree_strategy.yaml
+
+# Train Q-Learning Strategy
+python -m src.TradingStrategist.train --config configs/qstrategy.yaml
+
+# Evaluate multiple strategies
+python -m src.TradingStrategist.evaluate --config configs/manual_strategy_config.yaml
+```
+
+---
+
+## 📊 Performance Metrics
+
+TradingStrategist provides comprehensive performance analysis:
+
+| Metric | Description | Formula |
+|--------|-------------|---------|
+| **Sharpe Ratio** | Risk-adjusted return | (Return - Risk-free Rate) / Volatility |
+| **Cumulative Return** | Total return over period | (Final Value / Initial Value) - 1 |
+| **Max Drawdown** | Largest peak-to-trough decline | Max((Peak - Trough) / Peak) |
+| **Win Rate** | Percentage of profitable trades | Winning Trades / Total Trades |
+| **Average Daily Return** | Mean daily percentage return | Mean(Daily Returns) |
+| **Volatility** | Standard deviation of returns | StdDev(Daily Returns) |
+| **Calmar Ratio** | Return per unit of downside risk | Annual Return / Max Drawdown |
+
+---
+
+## 🔧 Extending the Framework
+
+### Adding Custom Trading Strategies
+
+```python
+from src.TradingStrategist.models.ManualStrategy import ManualStrategy
+import pandas as pd
+
+class CustomStrategy(ManualStrategy):
+    """Custom strategy implementation example"""
+    
+    def __init__(self, custom_param=0.5, **kwargs):
+        super().__init__(**kwargs)
+        self.custom_param = custom_param
+    
+    def _generate_signals(self, indicators):
+        """Override signal generation with custom logic"""
+        signals = pd.DataFrame(index=indicators['rsi'].index)
+        signals['signal'] = 0
+        
+        # Custom signal logic
+        buy_condition = (indicators['rsi'] < 30) & (indicators['macd'] > 0)
+        sell_condition = (indicators['rsi'] > 70) & (indicators['macd'] < 0)
+        
+        signals.loc[buy_condition, 'signal'] = 1
+        signals.loc[sell_condition, 'signal'] = -1
+        
+        return signals
+```
+
+### Custom Technical Indicators
+
+```python
+from src.TradingStrategist.indicators.technical import Indicators
+
+class CustomIndicators(Indicators):
+    """Extended indicators class with custom implementations"""
+    
+    def custom_oscillator(self, prices, window=14):
+        """Example custom indicator implementation"""
+        price_changes = prices.pct_change()
+        oscillator = price_changes.rolling(window=window).mean()
+        return oscillator
+```
+
+---
+
+## 🧪 Testing & Validation
+
+```bash
+# Run data integrity checks
+python -m src.TradingStrategist.data.check_data
+
+# Validate strategy configurations
+python -c "from src.TradingStrategist.utils.helpers import validate_config; print('✅ Configs valid')"
+
+# Test strategy implementations
+python -m pytest tests/ -v  # (when tests are implemented)
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/ML-Trading-Strategist.git
+cd ML-Trading-Strategist
+
+# Create development environment
+conda env create -f environment.yaml
+conda activate trading-strategist
+
+# Install development dependencies
+pip install -e .
+
+# Run tests
+python -m pytest tests/
+```
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgements
+---
 
-- **Libraries**: NumPy, Pandas, scikit-learn, Streamlit, Matplotlib
-- **Data Sources**: Historical stock data providers
-- **Contributors**: All individual contributors to this project
+## 🙏 Acknowledgments
+
+- **Yahoo Finance** for providing historical market data
+- **Streamlit** for the interactive web framework
+- **scikit-learn** for machine learning algorithms
+- **pandas & NumPy** for data processing capabilities
+- **The quantitative finance community** for algorithmic trading insights
+
+---
+
+## ⚠️ Disclaimer
+
+**Important**: This software is for educational and research purposes only. Trading involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. Always consult with a qualified financial advisor before making investment decisions.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the quantitative trading community**
+
+[🏠 Home](https://github.com/your-username/ML-Trading-Strategist) • [📖 Wiki](https://github.com/your-username/ML-Trading-Strategist/wiki) • [🐛 Issues](https://github.com/your-username/ML-Trading-Strategist/issues) • [💡 Discussions](https://github.com/your-username/ML-Trading-Strategist/discussions)
+
+</div>
