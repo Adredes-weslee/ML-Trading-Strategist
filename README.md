@@ -20,7 +20,7 @@
 
 **An enterprise-grade machine learning framework for quantitative trading strategy development, backtesting, and portfolio optimization**
 
-[🚀 Live Demo]([YOUR_STREAMLIT_DEPLOYMENT_URL](https://adredes-weslee-ml-trading-strategist-app-pu7qym.streamlit.app/)) • [📖 Documentation](#-documentation) • [💻 Installation](#-installation) • [🔧 Configuration](#-configuration)
+[🚀 Live Demo](https://adredes-weslee-ml-trading-strategist-app-pu7qym.streamlit.app/) • [💻 Installation](#-installation) • [🔧 Configuration](#-configuration)
 
 </div>
 
@@ -549,6 +549,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for the quantitative trading community**
 
-[🏠 Home](https://github.com/Adredes-weslee/ML-Trading-Strategist) • [📖 Wiki](https://github.com/Adredes-weslee/ML-Trading-Strategist/wiki) • [🐛 Issues](https://github.com/Adredes-weslee/ML-Trading-Strategist/issues) • [💡 Discussions](https://github.com/Adredes-weslee/ML-Trading-Strategist/discussions)
+[🏠 Home](https://github.com/Adredes-weslee/ML-Trading-Strategist) • [📖 Wiki](https://github.com/Adredes-weslee/ML-Trading-Strategist/wiki) • [🐛 Issues](https://github.com/Adredes-weslee/ML-Trading-Strategist/issues) 
 
 </div>
