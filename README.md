@@ -5,9 +5,21 @@ app.py is a Streamlit backtesting dashboard for comparing trading strategies on 
 src/TradingStrategist/__init__.py exposes the package API for a benchmark, a manual rule-based strategy, a bagged-tree learner, and a Q-learning learner.
 
 <!-- README_SURFACE_START -->
-![Python](https://img.shields.io/badge/Python-Trading_Research-3776AB?style=flat-square&logo=python&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white) ![Reinforcement Learning](https://img.shields.io/badge/RL-Strategy_Study-7C3AED?style=flat-square)
+```mermaid
+flowchart LR
+    A["Streamlit UI<br/>app.py"] --> B["configs/*.yaml"]
+    A --> D["Strategy layer<br/>Manual / Tree / Q"]
+    C["CSV price data<br/>data/*.csv"] --> E["loader.py"]
+    E --> D
+    D --> F["market_sim.py<br/>backtest + metrics"]
+    G["CLI<br/>train.py / evaluate.py"] --> D
+    G --> F
+```
 
 [![Portfolio Article](https://img.shields.io/badge/Portfolio%20Article-102A43?style=flat-square)](https://adredes-weslee.github.io/ai/finance/machine-learning/reinforcement-learning/2025/05/12/ml-trading-strategist-comparing-learning-approaches.html) [![Live Demo](https://img.shields.io/badge/Live%20Demo-FF8B2B?style=flat-square)](https://adredes-weslee-ml-trading-strategist-app-pu7qym.streamlit.app/)
+
+![Python](https://img.shields.io/badge/Python-Trading_Research-3776AB?style=flat-square&logo=python&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white) ![Reinforcement Learning](https://img.shields.io/badge/RL-Strategy_Study-7C3AED?style=flat-square)
+
 ## Quickstart
 
 ```bash
