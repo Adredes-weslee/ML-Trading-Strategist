@@ -40,7 +40,7 @@ except ImportError as e:
 # Configure the page
 st.set_page_config(
     page_title="TradingStrategist",
-    page_icon="📈",
+    page_icon=":chart_with_upwards_trend:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -125,20 +125,27 @@ q_params = {
 }
 
 # Title and description
-st.title("📈 TradingStrategist")
-st.markdown(
-    """
-    A modular machine learning framework for algorithmic trading strategy development and backtesting.
-    
-    This application allows you to:
-    
-    - Develop and test manual trading strategies with technical indicators
-    - Train decision tree-based trading strategy models
-    - Implement Q-learning reinforcement learning for trading
-    - Backtest strategies with realistic market conditions including impact and commissions
-    - Compare performance across different approach types
-    """
+st.title("TradingStrategist")
+st.caption(
+    "Compare benchmark, manual, tree-based, and Q-learning strategies on the same train/test split."
 )
+
+hero_col, support_col = st.columns([1.9, 1.1], gap="large")
+with hero_col:
+    st.markdown(
+        """
+        Use the left rail to choose a symbol or portfolio basket, set the backtest window,
+        and decide which strategy families to compare. The default view stays focused on
+        orientation and price preview before any training or simulation starts.
+        """
+    )
+with support_col:
+    st.info(
+        "Quick start\n\n"
+        "- Pick a single stock or weighted basket\n"
+        "- Confirm the training and testing windows\n"
+        "- Run only the strategies you want to compare"
+    )
 
 @st.cache_data
 def get_available_symbols():
@@ -470,7 +477,10 @@ def run_strategy(strategy_type, symbols, train_start_date, train_end_date,
     return portvals, trades, metrics
 
 # Sidebar for inputs
-st.sidebar.header("Strategy Settings")
+st.sidebar.header("Backtest Setup")
+st.sidebar.caption(
+    "Start with the universe and date split. Open the deeper strategy controls only when you need them."
+)
 
 # Configuration management
 with st.sidebar.expander("Configuration Management"):
@@ -556,64 +566,69 @@ if use_configs and 'data' in configs:
     elif 'symbols' in configs['data']:  # Support for multiple symbols in config
         default_symbols = configs['data']['symbols']
 
-# Stock selection - modified to support multiple stocks
-st.sidebar.subheader("Stock Selection")
-selection_mode = st.sidebar.radio("Selection Mode", ["Single Stock", "Portfolio (Multiple Stocks)"])
+stock_weights = {default_symbol: 1.0}
 
-if selection_mode == "Single Stock":
-    selected_symbols = [st.sidebar.selectbox(
-        "Select Stock Symbol", 
-        symbols,
-        index=symbols.index(default_symbol) if default_symbol in symbols else 0
-    )]
-else:
-    # Multi-select for portfolio mode
-    all_selected_symbols = st.sidebar.multiselect(
-        "Select Stock Symbols for Portfolio",
-        symbols,
-        default=default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
-    )
-    
-    if not all_selected_symbols:
-        st.sidebar.warning("Please select at least one stock for your portfolio")
-        selected_symbols = default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
+# Stock selection - modified to support multiple stocks
+with st.sidebar.expander("Universe", expanded=True):
+    selection_mode = st.radio("Selection Mode", ["Single Stock", "Portfolio (Multiple Stocks)"])
+
+    if selection_mode == "Single Stock":
+        selected_symbols = [st.selectbox(
+            "Select Stock Symbol", 
+            symbols,
+            index=symbols.index(default_symbol) if default_symbol in symbols else 0
+        )]
+        stock_weights = {selected_symbols[0]: 1.0}
     else:
-        selected_symbols = all_selected_symbols
-    
-    # Portfolio weights option
-    weight_method = st.sidebar.radio(
-        "Portfolio Weighting",
-        ["Equal Weight", "Custom Weights"],
-        help="Equal weight divides investment equally among stocks. Custom allows specific allocation."
-    )
-    
-    # Custom weights if selected
-    if weight_method == "Custom Weights":
-        st.sidebar.write("Specify allocation percentage for each stock (must sum to 100%)")
-        stock_weights = {}
-        total_weight = 0
+        # Multi-select for portfolio mode
+        all_selected_symbols = st.multiselect(
+            "Select Stock Symbols for Portfolio",
+            symbols,
+            default=default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
+        )
         
-        for symbol in selected_symbols:
-            default_weight = 100 / len(selected_symbols)
-            weight = st.sidebar.slider(f"{symbol} Weight (%)", 
-                                      min_value=0.0, 
-                                      max_value=100.0, 
-                                      value=default_weight,
-                                      step=5.0,
-                                      key=f"weight_{symbol}")
-            stock_weights[symbol] = weight / 100.0  # Convert to decimal
-            total_weight += weight
+        if not all_selected_symbols:
+            st.warning("Please select at least one stock for your portfolio.")
+            selected_symbols = default_symbols if all(sym in symbols for sym in default_symbols) else [symbols[0]]
+        else:
+            selected_symbols = all_selected_symbols
         
-        if abs(total_weight - 100) > 0.01:  # Allow small rounding errors
-            st.sidebar.error(f"Weights must sum to 100% (currently {total_weight:.1f}%)")
-    else:
-        # Equal weights
-        weight = 1.0 / len(selected_symbols)
-        stock_weights = {symbol: weight for symbol in selected_symbols}
+        # Portfolio weights option
+        weight_method = st.radio(
+            "Portfolio Weighting",
+            ["Equal Weight", "Custom Weights"],
+            help="Equal weight divides investment equally among stocks. Custom allows specific allocation."
+        )
+        
+        # Custom weights if selected
+        if weight_method == "Custom Weights":
+            st.write("Specify allocation percentage for each stock. Total weight must equal 100%.")
+            stock_weights = {}
+            total_weight = 0
+            
+            for symbol in selected_symbols:
+                default_weight = 100 / len(selected_symbols)
+                weight = st.slider(
+                    f"{symbol} Weight (%)", 
+                    min_value=0.0, 
+                    max_value=100.0, 
+                    value=default_weight,
+                    step=5.0,
+                    key=f"weight_{symbol}"
+                )
+                stock_weights[symbol] = weight / 100.0  # Convert to decimal
+                total_weight += weight
+            
+            if abs(total_weight - 100) > 0.01:  # Allow small rounding errors
+                st.error(f"Weights must sum to 100% (currently {total_weight:.1f}%).")
+        else:
+            # Equal weights
+            weight = 1.0 / len(selected_symbols)
+            stock_weights = {symbol: weight for symbol in selected_symbols}
 
 # Date range selection
-st.sidebar.subheader("Date Range")
-col1, col2 = st.sidebar.columns(2)
+with st.sidebar.expander("Train / Test Window", expanded=False):
+    col1, col2 = st.columns(2)
 
 # Default dates
 default_train_start = dt.datetime(2008, 1, 1)
@@ -635,23 +650,21 @@ if use_configs and 'data' in configs:
         if 'end_date' in config_data['testing']:
             default_test_end = dt.datetime.strptime(config_data['testing']['end_date'], '%Y-%m-%d')
 
-min_date = dt.datetime(2007, 1, 1)
-max_date = dt.datetime(2011, 12, 31)
+    min_date = dt.datetime(2007, 1, 1)
+    max_date = dt.datetime(2011, 12, 31)
 
-with col1:
-    train_start = st.date_input("Training Start Date", default_train_start, min_value=min_date, max_value=max_date)
-    test_start = st.date_input("Testing Start Date", default_test_start, min_value=min_date, max_value=max_date)
-with col2:
-    train_end = st.date_input("Training End Date", default_train_end, min_value=min_date, max_value=max_date)
-    test_end = st.date_input("Testing End Date", default_test_end, min_value=min_date, max_value=max_date)
+    with col1:
+        train_start = st.date_input("Training Start Date", default_train_start, min_value=min_date, max_value=max_date)
+        test_start = st.date_input("Testing Start Date", default_test_start, min_value=min_date, max_value=max_date)
+    with col2:
+        train_end = st.date_input("Training End Date", default_train_end, min_value=min_date, max_value=max_date)
+        test_end = st.date_input("Testing End Date", default_test_end, min_value=min_date, max_value=max_date)
 
 train_start = dt.datetime.combine(train_start, dt.time())
 train_end = dt.datetime.combine(train_end, dt.time())
 test_start = dt.datetime.combine(test_start, dt.time())
 test_end = dt.datetime.combine(test_end, dt.time())
 
-# Portfolio settings
-st.sidebar.subheader("Portfolio Settings")
 default_starting_value = 100000
 default_commission = 9.95
 default_impact = 0.005
@@ -668,16 +681,18 @@ if use_configs:
         if 'impact' in configs['market_sim']['trading']:
             default_impact = configs['market_sim']['trading']['impact']
 
-starting_value = st.sidebar.number_input("Starting Portfolio Value", min_value=1000, max_value=1000000, value=default_starting_value, step=10000)
-commission = st.sidebar.number_input("Commission per Trade ($)", min_value=0.0, max_value=50.0, value=default_commission, step=0.5)
-impact = st.sidebar.number_input("Market Impact per Trade (%)", min_value=0.0, max_value=0.05, value=default_impact, step=0.001, format="%.3f")
+with st.sidebar.expander("Execution Costs", expanded=False):
+    starting_value = st.number_input("Starting Portfolio Value", min_value=1000, max_value=1000000, value=default_starting_value, step=10000)
+    commission = st.number_input("Commission per Trade ($)", min_value=0.0, max_value=50.0, value=default_commission, step=0.5)
+    impact = st.number_input("Market Impact per Trade (%)", min_value=0.0, max_value=0.05, value=default_impact, step=0.001, format="%.3f")
 
 # Strategy selection with standardized naming
-selected_strategies = st.sidebar.multiselect(
-    "Select Strategies to Compare",
-    ["Benchmark", "Manual Strategy", "Tree Strategy Learner", "Q-Strategy Learner"],
-    default=["Benchmark", "Tree Strategy Learner"]
-)
+with st.sidebar.expander("Strategy Comparison", expanded=True):
+    selected_strategies = st.multiselect(
+        "Select Strategies to Compare",
+        ["Benchmark", "Manual Strategy", "Tree Strategy Learner", "Q-Strategy Learner"],
+        default=["Benchmark", "Tree Strategy Learner"]
+    )
 
 # Advanced strategy parameters (collapsible sections)
 if "Manual Strategy" in selected_strategies:
@@ -843,7 +858,8 @@ if "Q-Strategy Learner" in selected_strategies:
         q_params['convergence_threshold'] = st.number_input("Convergence Threshold", min_value=0.01, max_value=1.0, value=default_q_params['convergence_threshold'], format="%.2f", key="q_conv")
 
 # Run button
-run_button = st.sidebar.button("Run Strategies")
+st.sidebar.markdown("---")
+run_button = st.sidebar.button("Run Strategies", type="primary", use_container_width=True)
 
 # Main content area
 if run_button:
@@ -1027,7 +1043,12 @@ if run_button:
                 if trade_stats:
                     st.dataframe(pd.DataFrame(trade_stats), hide_index=True, use_container_width=True)
 else:
-    st.info("Select your strategy parameters and click 'Run Strategies' to see results.")
+    st.info("Use the left rail to choose the universe, date split, and strategy set. Then run the backtest to compare outcomes.")
+    summary_cols = st.columns(4)
+    summary_cols[0].metric("Universe", selected_symbols[0] if selection_mode == "Single Stock" else f"{len(selected_symbols)} symbols")
+    summary_cols[1].metric("Training Window", f"{train_start.year}-{train_end.year}")
+    summary_cols[2].metric("Testing Window", f"{test_start.year}-{test_end.year}")
+    summary_cols[3].metric("Strategies", len(selected_strategies))
     
     # Show data preview - modified to support multiple stocks
     if selection_mode == "Single Stock":
